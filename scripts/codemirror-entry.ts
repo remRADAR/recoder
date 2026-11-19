@@ -7,25 +7,44 @@ import { EditorView, keymap } from "@codemirror/view";
 declare global {
   interface Window {
     ReactNativeWebView?: { postMessage: (message: string) => void };
-    recoderMount?: (value: string) => void;
-    recoderSetValue?: (value: string) => void;
+    recoderMount?: () => void;
+    recoderSetMessage?: (raw: string) => void;
     recoderEditor?: EditorView;
   }
 }
 
-window.recoderMount = (value: string) => {
+let syncing = false;
+
+function post(message: { type: "ready" } | { type: "change"; value: string }) {
+  window.ReactNativeWebView?.postMessage(JSON.stringify(message));
+}
+
+window.recoderMount = () => {
+  if (window.recoderEditor) {
+    post({ type: "ready" });
+    return;
+  }
   const parent = document.getElementById("editor");
   if (!parent) return;
   const state = EditorState.create({
-    doc: value,
+    doc: "",
     extensions: [oneDark, javascript(), keymap.of([indentWithTab]), EditorView.lineWrapping, EditorView.updateListener.of((update) => {
-      if (update.docChanged) window.ReactNativeWebView?.postMessage(update.state.doc.toString());
+      if (update.docChanged && !syncing) post({ type: "change", value: update.state.doc.toString() });
     })],
   });
   window.recoderEditor = new EditorView({ state, parent });
+  post({ type: "ready" });
 };
-window.recoderSetValue = (value: string) => {
+
+window.recoderSetMessage = (raw: string) => {
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); } catch { return; }
+  if (!parsed || typeof parsed !== "object") return;
+  const message = parsed as { type?: unknown; value?: unknown };
+  if (message.type !== "set" || typeof message.value !== "string" || message.value.length > 512_000) return;
   const editor = window.recoderEditor;
-  if (!editor || editor.state.doc.toString() === value) return;
-  editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: value } });
+  if (!editor || editor.state.doc.toString() === message.value) return;
+  syncing = true;
+  editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: message.value } });
+  syncing = false;
 };

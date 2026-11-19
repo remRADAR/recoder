@@ -1,5 +1,5 @@
 import "dotenv/config";
-import express from "express";
+import express, { type Request } from "express";
 import { createServer } from "http";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
@@ -8,7 +8,23 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { createCorsMiddleware } from "./cors";
 import { clearLegacySessionCookie } from "./cookies";
-import { cancelDisposableSession, getDisposableSession, startDisposableSession } from "../execution";
+import { sdk } from "./sdk";
+import { registerExecutionRoutes } from "../execution-routes";
+
+function isLoopback(value: string | undefined) {
+  return value === "127.0.0.1" || value === "::1" || value === "::ffff:127.0.0.1" || value === "localhost";
+}
+
+async function executionOwner(req: Request) {
+  try {
+    const user = await sdk.authenticateRequest(req);
+    if (user) return user.id;
+  } catch {
+    // Fall through to the explicitly gated local development mode.
+  }
+  if (process.env.NODE_ENV === "development" && process.env.RECODER_ALLOW_LOCAL_EXECUTION === "true" && isLoopback(req.ip) && isLoopback(req.hostname)) return 0;
+  return null;
+}
 
 async function startServer() {
   const app = express();
@@ -26,21 +42,7 @@ async function startServer() {
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, timestamp: Date.now() });
   });
-  app.post("/api/execution/start", (req, res) => {
-    const projectName = typeof req.body?.projectName === "string" ? req.body.projectName.slice(0, 80) : "Untitled project";
-    const fileName = typeof req.body?.fileName === "string" ? req.body.fileName.slice(0, 120) : "main.ts";
-    res.json(startDisposableSession(projectName, fileName));
-  });
-  app.get("/api/execution/:id", (req, res) => {
-    const session = getDisposableSession(req.params.id);
-    if (!session) return res.status(404).json({ error: "Execution session not found" });
-    return res.json(session);
-  });
-  app.post("/api/execution/:id/cancel", (req, res) => {
-    const session = cancelDisposableSession(req.params.id);
-    if (!session) return res.status(404).json({ error: "Execution session not found" });
-    return res.json(session);
-  });
+  registerExecutionRoutes(app, executionOwner);
 
   app.use(
     "/api/trpc",

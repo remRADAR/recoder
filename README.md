@@ -18,10 +18,10 @@ The API listens on port `3000` and Expo Metro/Web listens on port `8081`. The pr
 
 ## Safety boundary
 
-The execution endpoint accepts only project and file metadata. It does not accept or run client-provided shell commands. Sessions are in-memory, time-bounded to five seconds, and labeled `simulated-disposable`; this is a feasibility proof, not production sandbox isolation. No client credentials, privileged container socket, production database, or public unauthenticated workspace is used.
+The execution endpoint requires an authenticated owner. For local development only, unauthenticated execution can be enabled with `RECORDER_ALLOW_LOCAL_EXECUTION=true`, `NODE_ENV=development`, and a loopback request; remote unauthenticated requests are rejected. Sessions are owner-scoped, in-memory, time-bounded to five seconds, output-limited, concurrency-capped, and expired after thirty seconds. The endpoint accepts only project/file metadata and does not accept or run client-provided shell commands. It is labeled `simulated-disposable`; this is a lifecycle proof, not production sandbox isolation.
 
 ## Evidence status
 
-Automated checks pass: TypeScript check, Expo lint, 27 active Vitest tests, and the API bundle build. A local runtime smoke test verified API health, streamed completion output, and cancellation. Metro returned a successful web response. Physical iPhone 13 and Android-device validation was not performed in this sandbox, so this branch makes no device-compatibility claim. Monaco was not forced into the mobile prototype because its official documentation excludes mobile browsers and mobile web frameworks; it remains a web/desktop comparison decision for M1.
+Automated checks cover the editor bridge, hostile content handling, authenticated execution routes, owner isolation, validation, workspace state, CORS, and execution lifecycle. A local runtime smoke test verified API health and Metro response; authenticated execution smoke testing requires a configured session or the explicit loopback development flag above. Physical iPhone 13 and Android-device validation was not performed, so this branch makes no device-compatibility claim. Monaco was not forced into the mobile prototype because its official documentation excludes mobile browsers and mobile web frameworks; it remains a web/desktop comparison decision for M1.
 
 The implementation plan and acceptance checklist are in `plan.md` and `TODO.md`.

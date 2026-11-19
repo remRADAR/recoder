@@ -4,7 +4,7 @@ import type { ExecutionProvider, ExecutionSession, Project, SourceFile } from "@
 const api = () => getApiBaseUrl();
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${api()}${path}`, { ...init, headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
+  const response = await fetch(`${api()}${path}`, { ...init, credentials: "include", headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
   if (!response.ok) throw new Error(`Execution request failed (${response.status})`);
   return response.json() as Promise<T>;
 }
