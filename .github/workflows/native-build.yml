@@ -37,7 +37,7 @@ concurrency:
 jobs:
   ios-simulator-compile:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.platform == 'both' || inputs.platform == 'ios' }}
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 45
 
     steps:
@@ -60,6 +60,11 @@ jobs:
 
       - name: Build editor bundle
         run: pnpm build:editor
+
+      - name: Report Apple toolchain
+        run: |
+          xcodebuild -version
+          swift --version
 
       - name: Generate iOS project
         run: npx expo prebuild --platform ios --no-install
