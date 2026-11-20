@@ -111,3 +111,142 @@ This slice does not implement GitHub authentication or repository sync, an exten
 ## Approval and delivery gate
 
 This is a proposed scope, not an implementation checkpoint. Approval should confirm that the next slice is the editing foundation rather than GitHub integration. Once approved, update `TODO.md` with the concrete M1.1 outcome clauses, implement on a new commit from `08d3ef0`, run the existing checks plus focused regressions, and deploy only to the isolated preview branch.
+
+
+## M1.1 Technical specification
+
+### State ownership and data flow
+
+The persisted `WorkspaceSnapshot` remains the source of truth for projects, files, active project, and active file. Dirty state is derived in memory and is not persisted as a second truth: compare the current workspace/file content against the last successfully serialized snapshot or a per-file saved-content map held by the screen/workspace controller. UI-only state such as explorer visibility, palette query, rename target, confirmation dialogs, editor selection, and output-panel visibility remains local to the shell.
+
+The screen should stop treating every editor keystroke as an opaque replacement of the entire workspace. The intended flow is `editor change -> updateFile(snapshot, fileId, content) -> mark dirty -> enqueue/coalesce save -> persist serialized snapshot -> acknowledge only the matching save sequence`. A save completion for sequence N must not clear dirty/error state created by sequence N+1. The existing `createSaveCoordinator` sequence guard remains the concurrency boundary; its state callback should become the single source for `Saving`, `Saved locally`, and `Save failed` presentation.
+
+### Proposed contracts
+
+Keep `SourceFile`, `Project`, and `WorkspaceSnapshot` version 1 compatible. Add pure helpers in `lib/workspace/core.ts` rather than putting mutation logic in the route:
+
+```ts
+export function renameFile(snapshot: WorkspaceSnapshot, fileId: string, name: string): WorkspaceSnapshot;
+export function deleteFile(snapshot: WorkspaceSnapshot, projectId: string, fileId: string): WorkspaceSnapshot;
+export function repairActiveFile(snapshot: WorkspaceSnapshot): WorkspaceSnapshot;
+export function validateFileName(name: string): string;
+```
+
+`renameFile` must trim, reject empty names, reject path separators/control characters, preserve the file id/content/language, and derive language only when the product explicitly chooses to support extension changes. Duplicate names within one project should be rejected deterministically. `deleteFile` must reject deletion when the target project has one file, remove only the requested file, and repair `activeFileId` to the nearest surviving file in stable array order. Every helper must return a new snapshot and leave unrelated projects referentially unchanged where practical.
+
+Extend the persistence presentation contract without moving storage ownership into React:
+
+```ts
+type SavePhase = "idle" | "dirty" | "saving" | "saved" | "failed";
+type SaveCoordinatorState = {
+  latestSequence: number;
+  pendingSnapshot: WorkspaceSnapshot | null;
+  error: Error | null;
+  phase: SavePhase;
+};
+```
+
+`phase` may be derived from the existing fields for compatibility. The coordinator must expose `getState()` and `subscribe()` or continue using its callback with a documented state transition table. `retry()` retries only the latest failed snapshot. A successful older save must never overwrite a newer pending snapshot or clear a newer error.
+
+### Editor bridge protocol
+
+Preserve the public `CodeMirrorEditor` props as `{ value: string; onChange(value: string): void }` for this slice. Internally, add an optional non-breaking status callback:
+
+```ts
+type EditorStatus = "loading" | "ready" | "replacing" | "error";
+type EditorError = "content_too_large" | "bridge_not_ready" | "invalid_message" | "injection_failed";
+```
+
+Native bridge messages should carry a request/document revision so an old `ready`, `change`, or error event cannot overwrite a newer file selection. `sendValue` must remain byte-bounded by `MAX_EDITOR_CONTENT_BYTES`; it should update the last-sent revision only after a valid injection request is accepted. On a value change caused by the parent selecting another file, the bridge may replace the document; on a value change caused by the editor itself, the route must not immediately echo the same content back and reset selection.
+
+Selection preservation should be implemented in the bundle protocol, not guessed in the route. Before a parent-driven replacement, request `{from,to}` when available; after the replacement, restore a clamped selection. If the WebView is not ready, render a visible editor status strip with `Editor is loading` or `Editor could not be initialized` and a retry action. Alerts may remain as secondary native feedback but cannot be the only error surface.
+
+The web fallback should expose the same status callback and use a `TextInput` ref only for explicit context actions such as select-all or go-to-line. Do not claim CodeMirror parity on web until the browser editor surface actually supports the behavior.
+
+### Save state transitions
+
+- `idle -> dirty`: editor emits content different from the last acknowledged snapshot.
+- `dirty -> saving`: coordinator accepts a snapshot and starts a write.
+- `saving -> saved`: the matching sequence completes successfully and no newer dirty snapshot exists.
+- `saving -> saving`: a newer edit supersedes the in-flight write; the next sequence remains pending.
+- `saving -> failed`: the matching write fails; the failed snapshot remains retryable.
+- `failed -> saving`: user taps Save or Retry and the pending snapshot is retried.
+- `failed -> dirty`: user edits after failure; the new in-memory content remains authoritative.
+
+The shell must label local persistence accurately. `Saved locally` means the current snapshot reached the configured local adapter, not GitHub or cloud storage.
+
+## UI component architecture
+
+The route should become a composition root rather than the implementation site for every interaction. The target tree is:
+
+```text
+HomeScreen
+├── WorkbenchTopBar
+│   ├── ExplorerButton
+│   ├── ProjectBreadcrumb
+│   ├── SaveStatusChip
+│   └── CommandPaletteButton
+├── WorkbenchBody
+│   ├── ExplorerSurface
+│   │   ├── ProjectList
+│   │   ├── FileList
+│   │   │   └── FileRow
+│   │   │       └── FileActionsSheet
+│   │   └── WorkspaceActions
+│   └── EditorSurface
+│       ├── FileTabs
+│       ├── EditorStatusStrip
+│       ├── CodeMirrorEditor
+│       └── EditorContextSheet
+├── OutputPanel
+├── SaveRecoverySheet
+├── CommandPalette
+└── BottomActionRail
+```
+
+`WorkbenchTopBar` receives only project context and save state plus event callbacks. `SaveStatusChip` is pressable and opens `SaveRecoverySheet`; it does not call storage directly. `ExplorerSurface` owns layout differences only: persistent narrow sidebar at the wide breakpoint and modal sheet on phone widths. `ProjectList` and `FileList` receive data and callbacks, while `FileRow` owns presentation of the active state and More affordance. Rename/delete mutations are dispatched by the screen/controller through pure workspace helpers.
+
+`EditorSurface` owns editor-adjacent state: active file, bridge status, context-sheet visibility, and editor action callbacks. `CodeMirrorEditor` remains a controlled surface with a narrow bridge adapter. `EditorContextSheet` must work with both the native WebView editor and browser TextInput through capability-aware callbacks; unsupported actions render disabled explanatory text rather than silently failing.
+
+`CommandPalette` consumes a typed command registry instead of closures that directly access persistence refs during render:
+
+```ts
+type WorkbenchCommand = {
+  id: string;
+  label: string;
+  hint: string;
+  availability: "web" | "native" | "all";
+  run: () => void;
+};
+```
+
+The registry should be constructed from the controller event handlers and filtered by query plus platform availability. It must include the same file operations shown in the explorer so touch and keyboard users have equivalent capability. `BottomActionRail` remains limited to high-frequency actions: Run, Preview, Save, Output, and More.
+
+### Responsive component behavior
+
+At widths below 800 CSS pixels, `ExplorerSurface` is a left-side modal sheet with a scrim, minimum 44-point row targets, and a close action. At 800 pixels and above, it is a fixed sidebar with a bounded width and no modal scrim. The editor always keeps the largest remaining flex region. The bottom rail stays visible on phones and becomes a compact strip on wider layouts; it must not push the editor below a usable minimum height.
+
+Rename uses an inline `TextInput` in a phone file row and a compact dialog on wider layouts. Delete confirmation uses the platform modal pattern and includes the file name plus the last-file constraint when relevant. Save recovery is a bottom sheet on phones and a centered dialog on wider web. All sheets support Escape/back dismissal where the platform provides it, but destructive confirmation must not dismiss by accidental outside tap.
+
+### Accessibility and interaction requirements
+
+All icon-like controls need an accessible label and a visible text fallback where feasible. Focus order on web is top bar, explorer, tabs, editor, output, and bottom rail. File rows expose their current selection state; save status exposes its phase as text; errors are announced through an inline live region on web and visible status text on native. Touch targets are at least 44 by 44 points. Color is never the only indication of dirty, failed, active, or native-only state.
+
+### Error and capability boundaries
+
+Workspace validation errors stay in the workspace adapter and are converted to concise user-facing messages by the controller. Editor bridge errors stay in the editor component and are surfaced through `EditorStatusStrip`. Runtime errors continue through the existing execution/preview paths and are not reclassified as editor or persistence errors. Browser-only limitations must be represented as `availability` metadata in the command registry; no command should imply that web can start a native loopback server.
+
+### Performance and safety constraints
+
+Coalesce save requests without dropping the latest snapshot. Do not serialize more than once per accepted save sequence. Keep the 2 MB workspace snapshot and 512 KB editor-content limits unchanged unless a separate capacity decision is approved. Avoid storing editor content in a second global cache. File rename/delete must be pure and deterministic so it can be tested without AsyncStorage. No GitHub token, extension package, MCP credential, or runtime secret belongs in this slice or in browser bundles.
+
+### Focused test contracts
+
+Add tests at the smallest owner:
+
+- `workspace.test.ts`: rename validation, duplicate-name rejection, last-file deletion rejection, active-file repair, and unchanged-project preservation.
+- `workspace-persistence.test.ts`: dirty/saving/saved/failed transitions, retry of the latest snapshot, and stale completion/error protection.
+- `editor-bridge.test.ts`: revision-aware replacement, byte-limit rejection before injection, selection clamping, readiness/error messages, and duplicate-change suppression.
+- A route/controller test where practical: command availability, file-action dispatch, and web/native labels.
+
+The acceptance bar is not merely that the app compiles: a test must demonstrate that a newer edit remains visible and recoverable after an older save fails, and that a file mutation cannot leave `activeFileId` pointing to a deleted file.
