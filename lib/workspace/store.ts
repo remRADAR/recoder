@@ -3,17 +3,36 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ExpoCrypto from "expo-crypto";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
+import { apiCall } from "@/lib/_core/api";
 import { type SourceFile, type WorkspaceSnapshot } from "@/shared/recoder";
 export { createFile, createInitialSnapshot, createProject, deleteFile, renameFile, repairActiveFile, updateFile, validateFileName, validateWorkspaceSnapshot, MAX_WORKSPACE_SNAPSHOT_BYTES, utf8ByteLength } from "./core";
 import { configureWorkspaceUuidProvider, createFile, createInitialSnapshot, createProject, updateFile, validateWorkspaceSnapshot } from "./core";
 import { MAX_IMPORT_BYTES, persistWorkspaceSnapshot, readImportedTextAsset } from "./persistence";
 
 configureWorkspaceUuidProvider(() => ExpoCrypto.randomUUID?.());
-
 const STORAGE_KEY = "recoder.workspace.v1";
+let githubMode = false;
+let githubSha: string | null = null;
+export type WorkspacePersistenceMode = "github" | "local";
+export function getWorkspacePersistenceMode(): WorkspacePersistenceMode { return githubMode ? "github" : "local"; }
 export { MAX_IMPORT_BYTES } from "./persistence";
 
+type GithubSyncConfig = { enabled: boolean; repository: string | null; branch: string | null; path: string | null };
+type GithubWorkspaceResponse = { snapshot: WorkspaceSnapshot | null; sha: string | null };
+async function detectGithubSync(): Promise<boolean> {
+  const config = await apiCall<GithubSyncConfig>("/api/github-sync/config");
+  githubMode = config.enabled;
+  return githubMode;
+}
+
 export async function loadWorkspace(): Promise<WorkspaceSnapshot> {
+  if (await detectGithubSync()) {
+    const remote = await apiCall<GithubWorkspaceResponse>("/api/github-sync/workspace");
+    githubSha = remote.sha;
+    if (!remote.snapshot) return createInitialSnapshot();
+    validateWorkspaceSnapshot(remote.snapshot);
+    return remote.snapshot;
+  }
   const raw = await AsyncStorage.getItem(STORAGE_KEY);
   if (!raw) return createInitialSnapshot();
   try {
@@ -26,6 +45,12 @@ export async function loadWorkspace(): Promise<WorkspaceSnapshot> {
 }
 
 export async function saveWorkspace(snapshot: WorkspaceSnapshot): Promise<void> {
+  if (!githubMode) await detectGithubSync();
+  if (githubMode) {
+    const result = await apiCall<{ sha: string }>("/api/github-sync/workspace", { method: "PUT", body: JSON.stringify({ snapshot, sha: githubSha }) });
+    githubSha = result.sha;
+    return;
+  }
   await persistWorkspaceSnapshot(snapshot, (serialized) => AsyncStorage.setItem(STORAGE_KEY, serialized));
 }
 

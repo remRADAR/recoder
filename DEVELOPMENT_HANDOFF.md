@@ -1,45 +1,30 @@
 # Development Handoff
 
 ## Current State
-Recoder is on the `remediation/android15-embedded-js-bundle` branch, continuing the mobile IDE shell and native-runtime build line. The repository builds from a connected GitHub branch and local persistence is explicitly local; GitHub sync is not implemented in the app.
+Recoder is on the `remediation/android15-embedded-js-bundle` branch. The mobile IDE shell, native runtime build path, and authenticated GitHub-backed workspace persistence are implemented. When the server has GitHub sync variables, workspace loads and saves go directly through the GitHub Contents API. When those variables are incomplete, the app deliberately uses AsyncStorage as a local fallback.
 
 ## Recently Completed
-- Added pure, deterministic `renameFile`, `deleteFile`, `repairActiveFile`, and `validateFileName` workspace helpers.
-- Added duplicate-name, invalid-name, last-file, and active-file repair regressions.
-- Added explicit save coordinator phases and subscriptions while preserving stale-save protection and retry semantics.
-- Added revision-aware editor bridge messages, bounded parent replacement, selection clamping, and visible native editor status/retry feedback.
-- Wired the route save chip to show `SAVING`, `SAVED LOCALLY`, `SAVE FAILED`, `EDITING`, or `READY` semantics.
-- Autosaved verified checkpoints to GitHub on `remediation/android15-embedded-js-bundle`.
+
+The workspace layer now has deterministic rename/delete helpers, active-file repair, explicit save phases, retry-safe persistence, and revision-aware editor bridge status. The API now exposes authenticated `/api/github-sync/config`, `/api/github-sync/workspace` GET, and `/api/github-sync/workspace` PUT routes. GitHub credentials remain server-only; the configured repository, branch, and workspace path are returned without secrets. Saves use the loaded blob SHA, re-read the remote SHA before writing, and return `409` on conflicts instead of overwriting remote changes. A missing workspace document is created as a normal GitHub commit. The workbench save chip reports `SAVED TO GITHUB` when that mode is active.
+
+The verified implementation has been autosaved to GitHub on `remediation/android15-embedded-js-bundle`.
+
+## Configuration
+
+Set `RECODER_GITHUB_TOKEN`, `RECODER_GITHUB_REPOSITORY`, `RECODER_GITHUB_BRANCH`, and optionally `RECODER_GITHUB_WORKSPACE_PATH`. If `OWNER_OPEN_ID` is set, GitHub sync is restricted to that authenticated Manus user. No GitHub token belongs in Expo or browser bundles.
 
 ## Known Limitations
-- Physical iPhone and Android validation has not been performed in this sandbox.
-- Native WebView selection is preserved using the last known/clamped selection; a full native selection telemetry API is not present.
-- GitHub repository sync, extensions, MCP registry, hostile-code isolation, and cloud persistence remain separate future slices.
-- Browser editing remains a controlled `TextInput` fallback rather than CodeMirror parity.
+
+Physical iPhone and Android validation has not been performed in this sandbox. GitHub OAuth account selection is not implemented inside Recoder; the server uses its configured GitHub credential and repository. Multi-user shared-repository collaboration is intentionally restricted when `OWNER_OPEN_ID` is configured and remains a future product decision otherwise. GitHub sync conflict recovery currently preserves the in-memory snapshot and exposes the existing retry/error state; an interactive pull/diff merge UI is a later slice. Browser editing remains a controlled `TextInput` fallback rather than CodeMirror parity.
 
 ## Verification
-- `pnpm install --frozen-lockfile`: passed.
-- `pnpm build:editor`: passed; generated bundle is committed.
-- `pnpm check`: passed.
-- `pnpm lint`: passed in baseline run.
-- `pnpm test`: baseline 56 active tests passed, 1 skipped; focused post-change suite 14 tests passed.
-- `pnpm build`: passed in baseline run.
+
+`pnpm install --frozen-lockfile`, `pnpm build:editor`, `pnpm check`, `pnpm lint`, `pnpm test`, `pnpm build`, and `git diff --check` pass. The full suite reports 62 active tests passed and 1 skipped, including three GitHub sync HTTP regressions covering authentication, configuration redaction, initial document creation, and stale-SHA conflict rejection.
 
 ## Files/Components Changed
-- `lib/workspace/core.ts`
-- `lib/workspace/persistence.ts`
-- `lib/workspace/store.ts`
-- `lib/editor/bridge.ts`
-- `scripts/codemirror-entry.ts`
-- `components/CodeMirrorEditor.tsx`
-- `app/(tabs)/index.tsx`
-- `lib/editor/codemirror-bundle.ts` (generated)
-- `tests/workspace.test.ts`
-- `tests/workspace-persistence.test.ts`
-- `tests/editor-bridge.test.ts`
+
+The GitHub sync implementation is in `server/github-sync.ts`, `server/_core/env.ts`, `server/_core/index.ts`, `lib/workspace/store.ts`, `app/(tabs)/index.tsx`, `tests/github-sync.test.ts`, and `README.md`. Earlier editor, workspace, persistence, and generated bundle changes remain part of the same branch.
 
 ## Recommended Next Steps
-1. Run the full lint/test/build sequence after the current checkpoint.
-2. Open the isolated browser preview at narrow and wide widths for visual regression.
-3. Validate the native editor and file actions on physical iPhone/Android clients.
-4. Plan M1.2 as an explicit GitHub repository bridge with authentication, pull/push states, conflict handling, and offline boundaries.
+
+Configure the four server variables in the deployment environment, run the app through the Manus OAuth login, and verify that the workbench reports `SAVED TO GITHUB` and that `.recoder/workspace.json` appears in the configured repository. Then exercise a deliberate remote edit to confirm the app surfaces a conflict without overwriting it. A future M1.2 iteration can add repository selection, GitHub OAuth, pull/diff/merge UI, and multi-user repository ownership.

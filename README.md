@@ -1,6 +1,6 @@
 # Recoder M0.6 PoC-1
 
-Recoder is a mobile-first coding environment whose first device-native proof runs user JavaScript on the phone, serves the active project over loopback, and renders that preview in a separate WebView. The application-private workspace continues to use AsyncStorage and survives application restarts.
+Recoder is a mobile-first coding environment whose first device-native proof runs user JavaScript on the phone, serves the active project over loopback, and renders that preview in a separate WebView. When GitHub sync is configured, the authenticated workspace is persisted directly to a server-selected GitHub repository; otherwise the app uses AsyncStorage as an explicit local fallback.
 
 ## Run locally
 
@@ -24,6 +24,12 @@ The app remains an Expo/React Native project. The device-native runtime requires
 - The app screen passes the selected project file content to the native runtime and passes the actual project files to the local server. The preview is a separate WebView loaded from the returned loopback URL.
 
 The execution WebView has no access to the trusted Recoder UI WebView, uses a non-persistent data store, and is disposed after completion, cancellation, or timeout. Executed JavaScript can currently access network APIs; network-off-by-default is a future security improvement, not an existing capability. This is application sandboxing and context separation, not hostile-code OS isolation. There is no package manager, npm/pip installation, Node.js compatibility layer, LAN binding, public server, cloud execution, or background development server.
+
+## GitHub workspace sync
+
+The server owns the GitHub credential; no token is bundled into the Expo client. Configure `RECODER_GITHUB_TOKEN`, `RECODER_GITHUB_REPOSITORY` (`owner/name`), `RECODER_GITHUB_BRANCH`, and optionally `RECODER_GITHUB_WORKSPACE_PATH` (default `.recoder/workspace.json`). If `OWNER_OPEN_ID` is set, only that authenticated Manus user can read or write the configured repository. The app discovers the configuration at startup and changes its save status to `SAVED TO GITHUB` when active.
+
+Every workspace save is an authenticated `PUT` to the GitHub Contents API. The client sends the last loaded blob SHA, and the server re-reads the remote SHA before writing. A mismatch returns `409` instead of overwriting someone else's changes; the app preserves the in-memory snapshot and shows the existing retry/error state. A missing workspace file is created with a normal Git commit. GitHub sync is not enabled when the server configuration is incomplete, in which case local AsyncStorage is used deliberately rather than silently mixing the two persistence backends.
 
 ## Verification status
 

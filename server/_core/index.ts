@@ -12,6 +12,7 @@ import { sdk } from "./sdk";
 import { ENV } from "./env";
 import { registerExecutionRoutes } from "../execution-routes";
 import { canUseLocalExecutionFallback } from "../execution-auth";
+import { registerGithubSyncRoutes } from "../github-sync";
 
 let localFallbackActivations = 0;
 
@@ -38,6 +39,14 @@ async function startServer() {
   app.use(createCorsMiddleware());
   app.use(clearLegacySessionCookie());
   registerExecutionRoutes(app, executionOwner);
+  registerGithubSyncRoutes(app, async (req) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      return user ? { id: user.id, openId: user.openId } : null;
+    } catch {
+      return null;
+    }
+  });
 
   app.use(express.json({ limit: "1mb" }));
   app.use(express.urlencoded({ limit: "1mb", extended: true }));
