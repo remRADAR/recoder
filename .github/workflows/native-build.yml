@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "m0.6/poc1-device-native-runtime"
+      - "remediation/android15-embedded-js-bundle"
     paths:
       - ".github/workflows/native-build.yml"
       - "app.config.ts"
