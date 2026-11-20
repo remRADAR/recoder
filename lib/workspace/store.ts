@@ -4,7 +4,7 @@ import * as ExpoCrypto from "expo-crypto";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { type SourceFile, type WorkspaceSnapshot } from "@/shared/recoder";
-export { createFile, createInitialSnapshot, createProject, updateFile, validateWorkspaceSnapshot, MAX_WORKSPACE_SNAPSHOT_BYTES, utf8ByteLength } from "./core";
+export { createFile, createInitialSnapshot, createProject, deleteFile, renameFile, repairActiveFile, updateFile, validateFileName, validateWorkspaceSnapshot, MAX_WORKSPACE_SNAPSHOT_BYTES, utf8ByteLength } from "./core";
 import { configureWorkspaceUuidProvider, createFile, createInitialSnapshot, createProject, updateFile, validateWorkspaceSnapshot } from "./core";
 import { MAX_IMPORT_BYTES, persistWorkspaceSnapshot, readImportedTextAsset } from "./persistence";
 
