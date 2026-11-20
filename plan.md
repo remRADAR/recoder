@@ -57,3 +57,57 @@ The change is presentation-focused and preserves the existing callbacks and data
 ## Verification
 
 Run `pnpm check`, `pnpm lint`, `pnpm test`, `pnpm build:editor`, and `pnpm build` (Expo web export). Inspect the diff for accidental changes and verify the shell at phone and wider web dimensions if a browser preview is available. Physical native keyboard, import/export, and loopback behavior remain not tested in this sandbox.
+
+
+# Proposed Next Slice — M1.1 Mobile Editing Foundation
+
+## Why this slice comes next
+
+The shell now provides the major surfaces, but the editor is still the product's weakest point: the browser uses a controlled text fallback, the native bridge still has the accepted full-document replacement and cursor-preservation deferrals, and persistence has not been manually validated across a restart. GitHub, extensions, and MCPs will be more valuable after editing, file navigation, and recovery feel dependable on a phone. This slice therefore improves the core editing loop before adding external integrations.
+
+## Scope
+
+M1.1 should deliver a trustworthy mobile editing loop across phone portrait, phone landscape, tablet, and web:
+
+1. **Dirty-state and save semantics.** Track whether the active file or workspace has unsaved changes, show `Editing`, `Saving`, `Saved locally`, and `Save failed` states in the top bar, and make the Save command meaningful rather than merely repeating the latest coordinator call. Preserve the current retry behavior and never discard the newest in-memory edit when persistence fails.
+
+2. **Editor bridge hardening.** Close the accepted AUD-L03 gap for the supported editing path: preserve cursor/selection where possible, reject oversized content before replacement, avoid avoidable full-document replacement on unrelated workspace updates, and surface native bridge readiness failures as visible editor state instead of only alerts. The implementation must keep the existing `CodeMirrorEditor` value/onChange contract or document a narrowly scoped adapter change.
+
+3. **Phone file operations.** Add rename and delete with confirmation for files, prevent deleting the last file in a project, keep the active-file pointer valid after mutations, and expose these actions from both the explorer row and command palette. File names must remain validated by the existing workspace rules; no arbitrary path model is introduced.
+
+4. **Workspace recovery.** Add a lightweight recent-workspace/recovery indicator based on the existing local snapshot, verify that a reload restores the active project, active file, and latest saved content, and keep failed saves recoverable. Do not introduce cloud sync or a second persistence backend in this slice.
+
+5. **Mobile editing affordances.** Add an editor context action surface for Go to line, select all, duplicate line, and toggle output. On web, support keyboard invocation where the browser allows it; on native, keep touch targets at least 44 points and avoid claiming desktop shortcuts that are not wired.
+
+6. **Validation surface.** Add focused tests for dirty-state transitions, active-file repair after rename/delete, restart restoration, oversized editor updates, and failed-save recovery. Verify the shell in browser preview at a narrow phone-like CSS width and the existing wider layout; physical device evidence remains a separate gate.
+
+## Interaction design
+
+The top bar becomes a truthful state indicator: the project context remains left-aligned, while the save chip changes from a static `SAVED LOCALLY` label to a stateful status. Tapping the status opens the recovery/save details rather than navigating away. The file explorer uses a trailing More action on each file row; the same action list is available from the command palette so touch and keyboard flows stay equivalent.
+
+Rename uses an inline field in the explorer on phones and a compact modal on wider web. Delete is a destructive action that requires confirmation and explains when the last-file rule blocks it. After a mutation, the shell keeps the user in the same project and selects the nearest surviving file deterministically.
+
+The editor context surface should be small and local to the active file. It must not turn the shell into a desktop command dump; actions should be limited to operations that are useful on a phone and can be implemented consistently across the web fallback and native editor bridge.
+
+## Implementation structure
+
+- `shared/recoder.ts`: extend workspace/file operations only if the current models cannot represent dirty or recovery metadata; prefer derived state over persisted UI state.
+- `lib/workspace/core.ts` and `lib/workspace/store.ts`: add validated rename/delete helpers, active-file repair, and restart/recovery test seams while preserving snapshot versioning.
+- `lib/workspace/persistence.ts`: expose save lifecycle state to the shell without duplicating persistence ownership.
+- `components/CodeMirrorEditor.tsx`: harden bridge readiness, replacement, selection, and error signaling behind the current editor contract.
+- `app/(tabs)/index.tsx`: consume save lifecycle state, add file-row actions, context actions, and responsive recovery UI; keep runtime execution and preview callbacks unchanged.
+- `tests/`: add focused workspace, persistence, and editor-bridge regression coverage before changing integration scope.
+
+## Explicit non-goals
+
+This slice does not implement GitHub authentication or repository sync, an extension runtime, MCP discovery/execution, arbitrary phone-hosted development servers, cloud-device persistence, collaborative editing, or hostile-code isolation. Those require separate capability and security decisions after the editing foundation is reliable.
+
+## Follow-on sequence after M1.1
+
+- **M1.2 Repository bridge:** GitHub sign-in/connection, repository selection, clone/pull/push states, conflict-safe save boundaries, and explicit offline behavior.
+- **M1.3 Capability registry:** an adapter model for extensions and MCPs, with permission scopes and browser/native availability metadata before installing or executing anything.
+- **M1.4 Hosted runtime:** a separately isolated phone/cloud execution service and development-server lifecycle, with resource limits, authentication, logs, and a native-versus-web capability matrix.
+
+## Approval and delivery gate
+
+This is a proposed scope, not an implementation checkpoint. Approval should confirm that the next slice is the editing foundation rather than GitHub integration. Once approved, update `TODO.md` with the concrete M1.1 outcome clauses, implement on a new commit from `08d3ef0`, run the existing checks plus focused regressions, and deploy only to the isolated preview branch.
