@@ -1,13 +1,15 @@
 # Development Handoff
 
 ## Current State
-Recoder is on the `remediation/android15-embedded-js-bundle` branch. The mobile IDE shell, native runtime build path, and authenticated GitHub-backed workspace persistence are implemented. When the server has GitHub sync variables, workspace loads and saves go directly through the GitHub Contents API. When those variables are incomplete, the app deliberately uses AsyncStorage as a local fallback.
+Recoder is on the `remediation/android15-embedded-js-bundle` branch. The mobile IDE shell, native runtime build path, authenticated GitHub-backed workspace persistence, secure agent configuration, and compact desktop-style AI dock are implemented. When the server has GitHub sync variables, workspace loads and saves go directly through the GitHub Contents API. When those variables are incomplete, the app deliberately uses AsyncStorage as an explicit local fallback.
 
 ## Recently Completed
 
 The workspace layer now has deterministic rename/delete helpers, active-file repair, explicit save phases, retry-safe persistence, and revision-aware editor bridge status. The API now exposes authenticated `/api/github-sync/config`, `/api/github-sync/workspace` GET, and `/api/github-sync/workspace` PUT routes. GitHub credentials remain server-only; the configured repository, branch, and workspace path are returned without secrets. Saves use the loaded blob SHA, re-read the remote SHA before writing, and return `409` on conflicts instead of overwriting remote changes. A missing workspace document is created as a normal GitHub commit. The workbench save chip reports `SAVED TO GITHUB` when that mode is active.
 
 The verified implementation has been autosaved to GitHub on `remediation/android15-embedded-js-bundle`.
+
+The current workbench has an Explorer/editor/terminal composition on wide screens and a mobile AI dock that can be opened from the top bar or command palette. The dock runs a bounded OpenAI-compatible tool loop with `list_files`, `read_file`, `write_file`, `append_file`, and `run_file` tools. Provider credentials are resolved inside the runtime module from Expo SecureStore; raw keys are not placed in workspace state, prompts, or UI state.
 
 ## Configuration and Deployment
 
@@ -27,7 +29,7 @@ After deployment, authenticate through Manus OAuth, confirm `GET /api/github-syn
 
 ## Known Limitations
 
-Physical iPhone and Android validation has not been performed in this sandbox. GitHub OAuth account selection is not implemented inside Recoder; the server uses its configured GitHub credential and repository. Multi-user shared-repository collaboration is intentionally restricted when `OWNER_OPEN_ID` is configured and remains a future product decision otherwise. GitHub sync conflict recovery currently preserves the in-memory snapshot and exposes the existing retry/error state; an interactive pull/diff merge UI is a later slice. Browser editing remains a controlled `TextInput` fallback rather than CodeMirror parity.
+Physical iPhone and Android validation has not been performed in this sandbox. GitHub OAuth account selection is not implemented inside Recoder; the server uses its configured GitHub credential and repository. Multi-user shared-repository collaboration is intentionally restricted when `OWNER_OPEN_ID` is configured and remains a future product decision otherwise. GitHub sync conflict recovery currently preserves the in-memory snapshot and exposes the existing retry/error state; an interactive pull/diff merge UI is a later slice. Browser editing remains a controlled `TextInput` fallback rather than CodeMirror parity. Agent tool execution currently requires an OpenAI-compatible provider endpoint; Anthropic/Gemini profiles can still be configured but need provider adapters before tool loops can use them. The agent can edit only the in-memory active workspace and persist through the existing save coordinator; it does not receive raw GitHub tokens or unrestricted OS shell access. The existing native runtime remains bounded JavaScript/WebView execution rather than a full Codespaces container, package manager, or remote Linux shell.
 
 ## Verification
 
@@ -39,4 +41,4 @@ The GitHub sync implementation is in `server/github-sync.ts`, `server/_core/env.
 
 ## Recommended Next Steps
 
-Provision the server variables above, run the app through Manus OAuth, and complete the GitHub save/conflict checklist before calling deployment verified. A future M1.2 iteration can add repository selection, GitHub OAuth, pull/diff/merge UI, and multi-user repository ownership.
+Provision the server variables above, run the app through Manus OAuth, and complete the GitHub save/conflict checklist before calling deployment verified. A future M1.2 iteration can add repository selection, GitHub OAuth, pull/diff/merge UI, multi-user repository ownership, Anthropic/Gemini tool adapters, explicit per-task approval prompts, and a true device-side shell/container if the product requires Codespaces-level execution.

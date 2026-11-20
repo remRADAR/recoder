@@ -31,6 +31,7 @@ export type AgentSettings = {
 
 type StoredProvider = Omit<ProviderConfig, "apiKeyConfigured" | "apiKeyPreview"> & { apiKey: string };
 type StoredSettings = { version: 1; providers: StoredProvider[]; agents: AgentProfile[] };
+export type AgentRuntimeConfig = { kind: AgentProviderKind; model: string; baseUrl: string; apiKey: string };
 
 const STORAGE_KEY = "recoder.ai.settings.v1";
 const MAX_SYSTEM_PROMPT_LENGTH = 4_000;
@@ -103,6 +104,15 @@ export async function loadAgentSettings(): Promise<AgentSettings> {
   const stored = await readStored();
   if (!stored) return emptySettings(true);
   return { providers: stored.providers.map(publicProvider), agents: stored.agents, secureStorageAvailable: true };
+}
+
+export async function getAgentRuntimeConfig(agentId: string): Promise<AgentRuntimeConfig | null> {
+  if (!(await secureStorageAvailable())) return null;
+  const stored = await readStored();
+  const agent = stored?.agents.find((item) => item.id === agentId);
+  const provider = agent ? stored?.providers.find((item) => item.id === agent.providerId) : undefined;
+  if (!agent || !provider?.apiKey || !provider.enabled || !agent.enabled) return null;
+  return { kind: provider.kind, model: agent.model.trim() || provider.model, baseUrl: provider.baseUrl, apiKey: provider.apiKey };
 }
 
 export async function saveProvider(input: { id?: string; label: string; kind: AgentProviderKind; model: string; baseUrl: string; enabled: boolean; apiKey: string }): Promise<ProviderConfig> {
