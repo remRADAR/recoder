@@ -13,10 +13,10 @@ import java.io.InputStreamReader
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.URI
+import org.json.JSONObject
 import java.security.SecureRandom
 import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -62,15 +62,15 @@ class RecoderRuntimeModule : Module() {
     AsyncFunction("startLocalServer") { input: Map<String, Any>, promise: Promise ->
       val id = input["serverId"] as? String ?: return@AsyncFunction promise.reject("INVALID_INPUT", "serverId is required", null)
       val files = (input["files"] as? Map<*, *>)?.mapNotNull { (key, value) -> if (key is String && value is String) key to value else null }?.toMap() ?: emptyMap()
-      thread(name = "recoder-server-$id") { try { val token = secureToken(); val socket = ServerSocket(0, MAX_CONNECTIONS, java.net.InetAddress.getLoopbackAddress()); val handle = ServerHandle(socket, files, token); servers[id] = handle; handle.acceptThread = thread(name = "recoder-accept-$id") { while (!socket.isClosed) try { if (handle.semaphore.tryAcquire()) thread { try { serve(socket.accept(), handle) } catch (_: Exception) { } finally { handle.semaphore.release() } } } catch (_: Exception) { break } }; main.post { promise.resolve(mapOf("id" to id, "url" to "http://127.0.0.1:${socket.localPort}/index.html?token=$token", "root" to "app-sandbox:$id", "startedAt" to System.currentTimeMillis())) } } catch (error: Exception) { main.post { promise.reject("SERVER_FAILED", error.message, error) } } }
+      thread(name = "recoder-server-$id") { try { val token = secureToken(); val socket = ServerSocket(0, MAX_CONNECTIONS, java.net.InetAddress.getLoopbackAddress()); val handle = ServerHandle(socket, files, token); servers[id] = handle; handle.acceptThread = thread(name = "recoder-accept-$id") { while (!socket.isClosed) try { val accepted = socket.accept(); if (!handle.semaphore.tryAcquire()) { accepted.close(); continue }; thread { try { serve(accepted, handle) } catch (_: Exception) { } finally { handle.semaphore.release() } } } catch (_: Exception) { break } }; main.post { promise.resolve(mapOf("id" to id, "url" to "http://127.0.0.1:${socket.localPort}/index.html?token=$token", "root" to "app-sandbox:$id", "startedAt" to System.currentTimeMillis())) } } catch (error: Exception) { main.post { promise.reject("SERVER_FAILED", error.message, error) } } }
     }
     AsyncFunction("stopLocalServer") { input: Map<String, Any> -> (input["serverId"] as? String)?.let { servers.remove(it)?.close() } }
   }
 
   private fun evaluate(handle: ExecutionHandle, code: String) {
     if (!handle.started.compareAndSet(false, true) || handle.terminal.get()) return
-    val safe = code.replace("</script", "<\\/script").replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
-    val script = """(function(){console.log=function(){RecoderOutput.emit('stdout',Array.prototype.join.call(arguments,' '))};console.error=function(){RecoderOutput.emit('stderr',Array.prototype.join.call(arguments,' '))};try{eval(\"$safe\");RecoderOutput.done('completed')}catch(e){RecoderOutput.emit('stderr',e&&e.stack?e.stack:String(e));RecoderOutput.done('failed')}})()"""
+    val safe = JSONObject.quote(code).replace("</script", "<\\/script").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
+    val script = """(function(){console.log=function(){RecoderOutput.emit('stdout',Array.prototype.join.call(arguments,' '))};console.error=function(){RecoderOutput.emit('stderr',Array.prototype.join.call(arguments,' '))};try{eval($safe);RecoderOutput.done('completed')}catch(e){RecoderOutput.emit('stderr',e&&e.stack?e.stack:String(e));RecoderOutput.done('failed')}})()"""
     handle.webView?.evaluateJavascript(script, null)
   }
 
