@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { EXECUTION_TIMEOUT_MS, MAX_ACTIVE_EXECUTIONS, MAX_OUTPUT_BYTES, OutputBuffer, isAllowedPreviewUrl, isSafeProjectPath } from "../shared/runtime";
+import { EXECUTION_TIMEOUT_MS, MAX_ACTIVE_EXECUTIONS, MAX_OUTPUT_BYTES, MAX_PREVIEW_CONNECTIONS, OutputBuffer, escapeJavaScriptSource, isAllowedPreviewUrl, isNativeTimeoutError, isSafeProjectPath } from "../shared/runtime";
 
 describe("device-native runtime remediation contract", () => {
-  it("uses bounded execution and a two-session cap", () => { expect(EXECUTION_TIMEOUT_MS).toBe(5_000); expect(MAX_OUTPUT_BYTES).toBe(64_000); expect(MAX_ACTIVE_EXECUTIONS).toBe(2); });
+  it("uses centralized bounded runtime limits", () => { expect(EXECUTION_TIMEOUT_MS).toBe(5_000); expect(MAX_OUTPUT_BYTES).toBe(64_000); expect(MAX_ACTIVE_EXECUTIONS).toBe(2); expect(MAX_PREVIEW_CONNECTIONS).toBe(8); });
   it("streams ordered stdout/stderr and explicitly reports truncation", () => { const buffer = new OutputBuffer(); expect(buffer.append("stdout", "one\n")[0].text).toBe("one\n"); expect(buffer.append("stderr", "two\n")[0].stream).toBe("stderr"); const events = buffer.append("stdout", "x".repeat(MAX_OUTPUT_BYTES)); expect(events.at(-1)?.text).toMatch(/truncated/i); expect(buffer.append("stdout", "late")).toEqual([]); });
   it("rejects unsafe and encoded traversal paths", () => { expect(isSafeProjectPath("index.html")).toBe(true); expect(isSafeProjectPath("assets/app.js")).toBe(true); expect(isSafeProjectPath("../secrets.txt")).toBe(false); expect(isSafeProjectPath("%2e%2e/secrets.txt")).toBe(false); expect(isSafeProjectPath("/etc/passwd")).toBe(false); });
   it("requires the assigned loopback port and a token", () => { expect(isAllowedPreviewUrl("http://127.0.0.1:4312/index.html?token=x", "http://127.0.0.1:4312/index.html?token=y")).toBe(true); expect(isAllowedPreviewUrl("http://127.0.0.1:4313/index.html?token=x", "http://127.0.0.1:4312/index.html?token=y")).toBe(false); expect(isAllowedPreviewUrl("https://example.com/?token=x", "http://127.0.0.1:4312/index.html?token=y")).toBe(false); });
+  it("escapes Android wrapper inputs without mutating source semantics", () => { const source = String.raw`const s = "\\\n\r</script>\u2028\u2029";`; const escaped = escapeJavaScriptSource(source); expect(escaped).toContain("<\\/script>"); expect(escaped).toContain("\\u2028"); expect(escaped).toContain("\\u2029"); expect(JSON.parse(escaped)).toBe(source); });
+  it("uses a structured timeout code rather than localized error text", () => { expect(isNativeTimeoutError({ code: "RUNTIME_TIMEOUT" })).toBe(true); expect(isNativeTimeoutError({ code: "timed out" })).toBe(false); expect(isNativeTimeoutError(new Error("timed out"))).toBe(false); });
 });

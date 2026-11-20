@@ -4,6 +4,7 @@ export const EXECUTION_TIMEOUT_MS = 5_000;
 export const MAX_OUTPUT_BYTES = 64_000;
 export const MAX_ACTIVE_EXECUTIONS = 2;
 export const MAX_HTTP_REQUEST_BYTES = 16_384;
+export const MAX_PREVIEW_CONNECTIONS = 8;
 
 export function utf8ByteLength(value: string): number { return new TextEncoder().encode(value).byteLength; }
 
@@ -47,4 +48,12 @@ export function isAllowedPreviewUrl(candidate: string, expected: string): boolea
     const actual = new URL(candidate); const base = new URL(expected);
     return actual.protocol === "http:" && actual.hostname === "127.0.0.1" && actual.port === base.port && actual.hostname === base.hostname && actual.searchParams.has("token");
   } catch { return false; }
+}
+
+export function escapeJavaScriptSource(source: string): string {
+  return JSON.stringify(source).replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029").replace(/<\/script/gi, "<\\/script");
+}
+
+export function isNativeTimeoutError(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "RUNTIME_TIMEOUT");
 }

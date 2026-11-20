@@ -30,7 +30,7 @@ The execution WebView has no access to the trusted Recoder UI WebView, uses a no
 Automated verification on the sandbox passed:
 
 - `pnpm check`
-- `pnpm test` — 54 passed, 1 existing skipped
+- `pnpm test` — 56 passed, 1 existing skipped
 - `pnpm lint`
 - `pnpm build`
 - `pnpm build:editor`
@@ -43,7 +43,7 @@ Project files are sent only to the native runtime module. Each preview server ha
 
 ## Remediation closure state
 
-F-01, F-02, F-03, F-04, F-05, F-06, F-07, F-08, F-09, and F-10 are addressed in source and covered by automated contract tests where platform-independent. Native compilation and simulator/device execution remain **NOT VERIFIED** because the required Apple and Android toolchains are unavailable in this environment. The authoritative audit text was not present as a repository file or PR review artifact; the remediation order was used as the finding-to-source mapping.
+F-01 through F-10 remain addressed in source. This round closes F-11 through F-18: iOS evaluation no longer uses `MainActor.assumeIsolated` and gates continuation completion exactly once; iOS enforces two active execution contexts and eight active preview connections; both platforms normalize completed/failed/timed-out/cancelled results; timeout classification uses a structured code; Android wraps source with JSON-safe escaping; terminal session retention is bounded; and shared TypeScript limits cover execution, output, request, and preview-connection budgets. Platform-independent regression coverage now reports 56 passing tests. Native compilation and simulator/device execution remain **NOT VERIFIED** because the required Apple and Android toolchains are unavailable in this environment. The authoritative audit text was not present as a repository file or PR review artifact; the remediation order was used as the finding-to-source mapping.
 
 ## Next step
 
