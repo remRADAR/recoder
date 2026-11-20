@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
-import { Platform, TextInput, View } from "react-native";
+import { Alert, Platform, TextInput, View } from "react-native";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
 import { codeMirrorBundle } from "@/lib/editor/codemirror-bundle";
-import { encodeEditorSetMessage, parseEditorBridgeMessage } from "@/lib/editor/bridge";
+import { encodeEditorSetMessage, MAX_EDITOR_CONTENT_BYTES, parseEditorBridgeMessage, utf8ByteLength } from "@/lib/editor/bridge";
 
 type Props = { value: string; onChange: (value: string) => void };
 
@@ -16,6 +16,10 @@ export function CodeMirrorEditor({ value, onChange }: Props) {
 
   const sendValue = (next: string) => {
     if (!readyRef.current || lastSentValueRef.current === next) return;
+    if (utf8ByteLength(next) > MAX_EDITOR_CONTENT_BYTES) {
+      Alert.alert("Editor update rejected", "This file exceeds the 512 KB editor limit. The editor content was not replaced.");
+      return;
+    }
     lastSentValueRef.current = next;
     webViewRef.current?.injectJavaScript(`window.recoderSetMessage(${JSON.stringify(encodeEditorSetMessage(next))}); true;`);
   };
@@ -44,6 +48,8 @@ export function CodeMirrorEditor({ value, onChange }: Props) {
       readyRef.current = true;
       lastSentValueRef.current = null;
       sendValue(value);
+    } else if (message.type === "error") {
+      Alert.alert("Editor update rejected", message.code === "content_too_large" ? "This file exceeds the 512 KB editor limit." : "The editor rejected an invalid bridge payload.");
     } else if (message.type === "change" && message.value !== lastSentValueRef.current) {
       onChange(message.value);
     }

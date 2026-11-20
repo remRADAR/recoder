@@ -6,7 +6,6 @@ import { registerExecutionRoutes } from "../server/execution-routes";
 let server: Server | null = null;
 async function createTestServer() {
   const app = express();
-  app.use(express.json());
   registerExecutionRoutes(app, async (req) => {
     const value = req.header("x-test-user");
     return value ? Number(value) : null;
@@ -31,6 +30,10 @@ describe("execution HTTP security boundary", () => {
     expect(unauthenticated.status).toBe(401);
     const malformed = await fetch(`${base}/api/execution/start`, { method: "POST", headers: { "content-type": "application/json", "x-test-user": "1" }, body: JSON.stringify({ projectName: "<script>", fileName: "main.ts", command: "rm -rf /" }) });
     expect(malformed.status).toBe(400);
+    const oversized = await fetch(`${base}/api/execution/start`, { method: "POST", headers: { "content-type": "application/json", "x-test-user": "1" }, body: JSON.stringify({ projectName: "x".repeat(9_000), fileName: "main.ts" }) });
+    expect(oversized.status).toBe(413);
+    const oneMb = await fetch(`${base}/api/execution/start`, { method: "POST", headers: { "content-type": "application/json", "x-test-user": "1" }, body: JSON.stringify({ projectName: "Demo", fileName: "main.ts", padding: "x".repeat(1024 * 1024) }) });
+    expect(oneMb.status).toBe(413);
   });
 
   it("enforces owner-only reads and cancellation", async () => {
@@ -45,5 +48,14 @@ describe("execution HTTP security boundary", () => {
     const ownerCancel = await fetch(`${base}/api/execution/${session.id}/cancel`, { method: "POST", headers: { "x-test-user": "1" } });
     expect(ownerCancel.status).toBe(200);
     expect((await ownerCancel.json()).status).toBe("cancelled");
+  });
+
+  it("rejects malformed UUIDs and eventually rate-limits repeated requests", async () => {
+    const base = await createTestServer();
+    const malformed = await fetch(`${base}/api/execution/not-a-uuid`, { headers: { "x-test-user": "1" } });
+    expect(malformed.status).toBe(400);
+    const statuses: number[] = [];
+    for (let index = 0; index < 25; index += 1) statuses.push((await fetch(`${base}/api/execution/not-a-uuid`, { headers: { "x-test-user": "1" } })).status);
+    expect(statuses).toContain(429);
   });
 });

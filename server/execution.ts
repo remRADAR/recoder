@@ -11,15 +11,29 @@ const MAX_ACTIVE_GLOBAL = 8;
 const MAX_ACTIVE_PER_OWNER = 3;
 const MAX_OUTPUT_BYTES = 16_000;
 
+function utf8ByteLength(value: string) {
+  return new TextEncoder().encode(value).byteLength;
+}
+
+export function truncateOutput(text: string, maxBytes = MAX_OUTPUT_BYTES) {
+  if (utf8ByteLength(text) <= maxBytes) return text;
+  let result = "";
+  for (const character of text) {
+    if (utf8ByteLength(result + character) > maxBytes) break;
+    result += character;
+  }
+  return result;
+}
+
 function publicSession(session: MutableSession): ExecutionSession {
   const { timer: _timer, expiryTimer: _expiryTimer, ownerId: _ownerId, ...safe } = session;
   return { ...safe, events: [...safe.events] };
 }
 
 function event(session: MutableSession, stream: ExecutionEvent["stream"], text: string) {
-  const currentBytes = session.events.reduce((total, item) => total + item.text.length, 0);
+  const currentBytes = session.events.reduce((total, item) => total + utf8ByteLength(item.text), 0);
   if (currentBytes >= MAX_OUTPUT_BYTES) return;
-  session.events.push({ id: session.events.length + 1, at: Date.now(), stream, text: text.slice(0, MAX_OUTPUT_BYTES - currentBytes) });
+  session.events.push({ id: session.events.length + 1, at: Date.now(), stream, text: truncateOutput(text, MAX_OUTPUT_BYTES - currentBytes) });
 }
 
 function activeSessions() {

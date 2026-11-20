@@ -9,11 +9,11 @@ import { createContext } from "./context";
 import { createCorsMiddleware } from "./cors";
 import { clearLegacySessionCookie } from "./cookies";
 import { sdk } from "./sdk";
+import { ENV } from "./env";
 import { registerExecutionRoutes } from "../execution-routes";
+import { canUseLocalExecutionFallback } from "../execution-auth";
 
-function isLoopback(value: string | undefined) {
-  return value === "127.0.0.1" || value === "::1" || value === "::ffff:127.0.0.1" || value === "localhost";
-}
+let localFallbackActivations = 0;
 
 async function executionOwner(req: Request) {
   try {
@@ -22,19 +22,25 @@ async function executionOwner(req: Request) {
   } catch {
     // Fall through to the explicitly gated local development mode.
   }
-  if (process.env.NODE_ENV === "development" && process.env.RECODER_ALLOW_LOCAL_EXECUTION === "true" && isLoopback(req.ip) && isLoopback(req.hostname)) return 0;
+  if (canUseLocalExecutionFallback({ isProduction: ENV.isProduction, enabled: process.env.RECODER_ALLOW_LOCAL_EXECUTION === "true", ip: req.ip, hostname: req.hostname })) {
+    localFallbackActivations += 1;
+    console.warn(`[Auth] local execution fallback accepted (count=${localFallbackActivations}, same-host loopback only)`);
+    return 0;
+  }
   return null;
 }
 
 async function startServer() {
   const app = express();
   const server = createServer(app);
+  if (process.env.RECODER_ALLOW_LOCAL_EXECUTION === "true") console.warn(ENV.isProduction ? "[Auth] local execution fallback disabled in production" : "[Auth] local execution fallback enabled for development loopback requests only; same-host reverse proxy required");
 
   app.use(createCorsMiddleware());
   app.use(clearLegacySessionCookie());
+  registerExecutionRoutes(app, executionOwner);
 
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  app.use(express.json({ limit: "1mb" }));
+  app.use(express.urlencoded({ limit: "1mb", extended: true }));
 
   registerStorageProxy(app);
   registerOAuthRoutes(app);
@@ -42,8 +48,6 @@ async function startServer() {
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, timestamp: Date.now() });
   });
-  registerExecutionRoutes(app, executionOwner);
-
   app.use(
     "/api/trpc",
     createExpressMiddleware({

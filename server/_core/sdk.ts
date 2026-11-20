@@ -18,6 +18,10 @@ import type {
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
 
+export function shouldWriteLastSignedIn(lastWriteAt: number | undefined, now: number): boolean {
+  return lastWriteAt === undefined || now - lastWriteAt >= 60_000;
+}
+
 export type SessionPayload = {
   openId: string;
   appId: string;
@@ -74,6 +78,7 @@ const createOAuthHttpClient = (): AxiosInstance =>
 class SDKServer {
   private readonly client: AxiosInstance;
   private readonly oauthService: OAuthService;
+  private readonly lastSignedInWrite = new Map<string, number>();
 
   constructor(client: AxiosInstance = createOAuthHttpClient()) {
     this.client = client;
@@ -272,10 +277,11 @@ class SDKServer {
       throw ForbiddenError("User not found");
     }
 
-    await db.upsertUser({
-      openId: user.openId,
-      lastSignedIn: signedInAt,
-    });
+    const lastWrite = this.lastSignedInWrite.get(user.openId) ?? 0;
+    if (shouldWriteLastSignedIn(lastWrite || undefined, signedInAt.getTime())) {
+      await db.upsertUser({ openId: user.openId, lastSignedIn: signedInAt });
+      this.lastSignedInWrite.set(user.openId, signedInAt.getTime());
+    }
 
     return user;
   }
