@@ -1,0 +1,9 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["RecoderRuntimeModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.recoder.runtime.RecoderRuntimeModule"]
+  }
+}

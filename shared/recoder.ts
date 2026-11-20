@@ -22,12 +22,13 @@ export type WorkspaceSnapshot = {
   projects: Project[];
 };
 
-export type ExecutionStatus = "idle" | "starting" | "running" | "completed" | "cancelled" | "failed";
+export type ExecutionStatus = "idle" | "starting" | "running" | "completed" | "cancelled" | "failed" | "timed_out";
+export type ExecutionStream = "stdout" | "stderr" | "system";
 
 export type ExecutionEvent = {
   id: number;
   at: number;
-  stream: "stdout" | "stderr" | "system";
+  stream: ExecutionStream;
   text: string;
 };
 
@@ -37,14 +38,29 @@ export type ExecutionSession = {
   startedAt: number;
   finishedAt?: number;
   events: ExecutionEvent[];
-  isolation: "simulated-disposable";
+  isolation: "device-webview-context" | "simulated-disposable";
   resourceLimitMs: number;
+  outputLimitBytes: number;
+};
+
+export type RuntimeEvent = {
+  sessionId: string;
+  stream: ExecutionStream;
+  text: string;
+};
+
+export type LocalServer = {
+  id: string;
+  url: string;
+  root: string;
+  startedAt: number;
 };
 
 export type ExecutionProvider = {
   start: (input: { project: Project; file: SourceFile }) => Promise<ExecutionSession>;
   cancel: (sessionId: string) => Promise<void>;
   get: (sessionId: string) => Promise<ExecutionSession>;
+  subscribe?: (listener: (event: RuntimeEvent) => void) => () => void;
 };
 
 export const DEFAULT_PROJECT: Project = {
