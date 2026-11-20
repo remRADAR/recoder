@@ -6,7 +6,21 @@ export { EXECUTION_TIMEOUT_MS, MAX_OUTPUT_BYTES } from "@/shared/runtime";
 type RuntimeSubscription = { remove: () => void };
 export type NativeRuntimeModule = { addListener(eventName: "runtimeOutput", listener: (event: RuntimeEvent) => void): RuntimeSubscription; executeJavaScript(input: { sessionId: string; code: string; timeoutMs: number; maxOutputBytes: number }): Promise<ExecutionSession>; cancelExecution(input: { sessionId: string }): Promise<void>; startLocalServer(input: { serverId: string; files: Record<string, string> }): Promise<LocalServer>; stopLocalServer(input: { serverId: string }): Promise<void> };
 let moduleRef: NativeRuntimeModule | null | undefined;
-export function getNativeRuntime(): NativeRuntimeModule | null { if (moduleRef !== undefined) return moduleRef; try { moduleRef = requireNativeModule<NativeRuntimeModule>("RecoderRuntime"); } catch { moduleRef = null; } return moduleRef; }
+function isNativeRuntimeModule(value: unknown): value is NativeRuntimeModule {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  return ["addListener", "executeJavaScript", "cancelExecution", "startLocalServer", "stopLocalServer"].every((key) => typeof candidate[key] === "function");
+}
+export function getNativeRuntime(): NativeRuntimeModule | null {
+  if (moduleRef !== undefined) return moduleRef;
+  try {
+    const candidate = requireNativeModule<NativeRuntimeModule>("RecoderRuntime");
+    moduleRef = isNativeRuntimeModule(candidate) ? candidate : null;
+  } catch {
+    moduleRef = null;
+  }
+  return moduleRef;
+}
 export function subscribeRuntime(listener: (event: RuntimeEvent) => void): () => void { const runtime = getNativeRuntime(); if (!runtime) return () => undefined; const subscription = runtime.addListener("runtimeOutput", listener); return () => subscription.remove(); }
 const unavailableProvider: ExecutionProvider = { async start() { throw new Error("The device-native runtime is unavailable. Build a development client with Expo prebuild."); }, async cancel() { throw new Error("The device-native runtime is unavailable."); }, async get() { throw new Error("The device-native runtime is unavailable."); } };
 export function createNativeProvider(): { provider: ExecutionProvider; available: boolean } {
