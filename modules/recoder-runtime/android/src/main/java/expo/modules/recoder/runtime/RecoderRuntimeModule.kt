@@ -45,7 +45,11 @@ class RecoderRuntimeModule : Module() {
       executions[id] = handle
       main.post {
         if (handle.terminal.get()) { completeExecution(handle, "cancelled"); return@post }
-        val webView = WebView(appContext.reactContext)
+        val context = appContext.reactContext ?: run {
+          completeExecution(handle, "failed", "RUNTIME_CONTEXT_UNAVAILABLE")
+          return@post
+        }
+        val webView = WebView(context)
         handle.webView = webView
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = false
@@ -74,12 +78,14 @@ class RecoderRuntimeModule : Module() {
     handle.webView?.evaluateJavascript(script, null)
   }
 
-  private fun completeExecution(handle: ExecutionHandle, status: String) {
+  private fun completeExecution(handle: ExecutionHandle, status: String, errorCode: String? = null) {
     if (!handle.resolved.compareAndSet(false, true)) return
     main.removeCallbacksAndMessages(handle)
     handle.webView?.stopLoading(); handle.webView?.removeJavascriptInterface("RecoderOutput"); handle.webView?.destroy()
     executions.remove(handle.id); active.decrementAndGet()
-    handle.promise.resolve(mapOf("id" to handle.id, "status" to status, "startedAt" to handle.startedAt, "finishedAt" to System.currentTimeMillis(), "events" to handle.events, "isolation" to "device-webview-context", "resourceLimitMs" to 5000, "outputLimitBytes" to handle.maxBytes, "outputTruncated" to handle.truncated))
+    val result = mutableMapOf<String, Any>("id" to handle.id, "status" to status, "startedAt" to handle.startedAt, "finishedAt" to System.currentTimeMillis(), "events" to handle.events, "isolation" to "device-webview-context", "resourceLimitMs" to 5000, "outputLimitBytes" to handle.maxBytes, "outputTruncated" to handle.truncated)
+    if (errorCode != null) result["errorCode"] = errorCode
+    handle.promise.resolve(result)
   }
 
   private fun secureToken(): String { val bytes = ByteArray(24); SecureRandom().nextBytes(bytes); return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes) }
