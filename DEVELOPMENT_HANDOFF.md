@@ -9,9 +9,21 @@ The workspace layer now has deterministic rename/delete helpers, active-file rep
 
 The verified implementation has been autosaved to GitHub on `remediation/android15-embedded-js-bundle`.
 
-## Configuration
+## Configuration and Deployment
 
-Set `RECODER_GITHUB_TOKEN`, `RECODER_GITHUB_REPOSITORY`, `RECODER_GITHUB_BRANCH`, and optionally `RECODER_GITHUB_WORKSPACE_PATH`. If `OWNER_OPEN_ID` is set, GitHub sync is restricted to that authenticated Manus user. No GitHub token belongs in Expo or browser bundles.
+GitHub sync is configured on the authenticated API server, not in the Expo/browser bundle and not in the static web preview deployment. Set these server-side variables in the environment that runs `server/_core/index.ts`:
+
+| Variable | Required | Value |
+|---|---:|---|
+| `RECODER_GITHUB_TOKEN` | Yes | A server-side fine-grained GitHub token with `Contents: Read and write` on the target repository. `GITHUB_TOKEN` is accepted as a fallback for compatible hosted runners. |
+| `RECODER_GITHUB_REPOSITORY` | Yes | Repository in `owner/name` form, for example `remRADAR/recoder`. |
+| `RECODER_GITHUB_BRANCH` | No | Target branch; defaults to `main`. |
+| `RECODER_GITHUB_WORKSPACE_PATH` | No | Workspace JSON path; defaults to `.recoder/workspace.json`. |
+| `OWNER_OPEN_ID` | Recommended | Manus `openId` allowed to read and write the configured repository. If empty, any authenticated app user can use the shared configured repository. |
+
+Provision the variables as server secrets/environment settings and restart the API service. Do not add them to `.env` files committed to Git, Expo public variables, `app.config.ts`, browser build settings, or GitHub Actions logs. The existing `recoder-preview.yml` workflow deploys only static Expo assets; it does not provision or run the API server, so the GitHub variables must also be configured in the separate API hosting environment.
+
+After deployment, authenticate through Manus OAuth, confirm `GET /api/github-sync/config` reports `enabled: true` without exposing a token, edit and save a workspace, verify the `SAVED TO GITHUB` status, and confirm `.recoder/workspace.json` appears in the configured branch. Make a deliberate remote edit and confirm a stale client receives a conflict rather than overwriting it. A token with insufficient contents permission, a missing repository, a protected branch requiring reviews, or an API server that cannot reach `api.github.com` will prevent saves.
 
 ## Known Limitations
 
@@ -27,4 +39,4 @@ The GitHub sync implementation is in `server/github-sync.ts`, `server/_core/env.
 
 ## Recommended Next Steps
 
-Configure the four server variables in the deployment environment, run the app through the Manus OAuth login, and verify that the workbench reports `SAVED TO GITHUB` and that `.recoder/workspace.json` appears in the configured repository. Then exercise a deliberate remote edit to confirm the app surfaces a conflict without overwriting it. A future M1.2 iteration can add repository selection, GitHub OAuth, pull/diff/merge UI, and multi-user repository ownership.
+Provision the server variables above, run the app through Manus OAuth, and complete the GitHub save/conflict checklist before calling deployment verified. A future M1.2 iteration can add repository selection, GitHub OAuth, pull/diff/merge UI, and multi-user repository ownership.
