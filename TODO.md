@@ -40,3 +40,12 @@
 ## Outstanding validation
 
 Physical iPhone 13 and physical Android validation remain unperformed. The simulated execution proof must not be described as secure production isolation. A real isolated execution provider, device evidence, restart testing, native import/export testing, AUD-L03, and AUD-L04 remain M1 work.
+
+
+# RC-M1 Mobile IDE Shell Outcomes
+
+- [x] **Mobile-first workbench shell:** The existing Recoder workspace is presented as a full-height mobile IDE with a top project context bar, editor-first center surface, bottom action rail, and responsive behavior for phone portrait, phone landscape, tablet, and desktop web.
+- [x] **Responsive editor and file explorer:** The active file remains editable through the existing CodeMirror/native bridge or browser fallback; the explorer supports project selection, file selection, new file, import, and export without breaking workspace persistence.
+- [x] **Command palette:** A full-screen searchable palette exposes the shell actions through touch-friendly rows and a keyboard-friendly search field, without inventing unsupported runtime capabilities.
+- [x] **Capability boundaries:** Browser-safe editing/persistence remains usable on web, while native-only execution, cancellation, loopback preview, and embedded preview are labeled as development-client/native capabilities.
+- [x] **Existing behavior preserved:** Current workspace save/retry behavior, project/file models, device execution output, cancellation, and local preview callbacks remain connected to the redesigned shell.
