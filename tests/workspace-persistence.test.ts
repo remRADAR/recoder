@@ -61,4 +61,17 @@ describe("workspace persistence safety", () => {
     expect(writer).toHaveBeenCalledTimes(2);
     void resolveFirst;
   });
+
+  it("publishes truthful save phases and retries only the latest failed snapshot", async () => {
+    const snapshot = createInitialSnapshot();
+    const phases: string[] = [];
+    let shouldFail = true;
+    const coordinator = createSaveCoordinator(async () => { if (shouldFail) throw new Error("offline"); }, (state) => phases.push(state.phase));
+    await expect(coordinator.save(snapshot)).rejects.toThrow("offline");
+    expect(coordinator.getState().phase).toBe("failed");
+    shouldFail = false;
+    await coordinator.retry();
+    expect(coordinator.getState()).toMatchObject({ phase: "saved", pendingSnapshot: null, error: null });
+    expect(phases).toEqual(["saving", "failed", "saving", "saved"]);
+  });
 });

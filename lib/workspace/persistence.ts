@@ -3,10 +3,12 @@ import { validateWorkspaceSnapshot, utf8ByteLength } from "./core";
 
 export const MAX_IMPORT_BYTES = 1 * 1024 * 1024;
 
+export type SavePhase = "idle" | "dirty" | "saving" | "saved" | "failed";
 export type SaveCoordinatorState = {
   latestSequence: number;
   pendingSnapshot: WorkspaceSnapshot | null;
   error: Error | null;
+  phase: SavePhase;
 };
 
 export function serializeWorkspaceSnapshot(snapshot: WorkspaceSnapshot): string {
@@ -32,20 +34,24 @@ export function createSaveCoordinator(
   writer: (snapshot: WorkspaceSnapshot) => Promise<void>,
   onStateChange?: (state: SaveCoordinatorState) => void,
 ) {
-  let state: SaveCoordinatorState = { latestSequence: 0, pendingSnapshot: null, error: null };
+  let state: SaveCoordinatorState = { latestSequence: 0, pendingSnapshot: null, error: null, phase: "idle" };
+  const listeners = new Set<(state: SaveCoordinatorState) => void>();
   const notify = () => onStateChange?.({ ...state });
   const save = (snapshot: WorkspaceSnapshot): Promise<void> => {
     const sequence = state.latestSequence + 1;
-    state = { latestSequence: sequence, pendingSnapshot: snapshot, error: null };
+    state = { latestSequence: sequence, pendingSnapshot: snapshot, error: null, phase: "saving" };
     notify();
+    listeners.forEach((listener) => listener({ ...state }));
     return writer(snapshot).then(() => {
       if (state.latestSequence !== sequence) return;
-      state = { ...state, pendingSnapshot: null, error: null };
+      state = { ...state, pendingSnapshot: null, error: null, phase: "saved" };
       notify();
+      listeners.forEach((listener) => listener({ ...state }));
     }).catch((error: unknown) => {
       if (state.latestSequence === sequence) {
-        state = { ...state, pendingSnapshot: snapshot, error: error instanceof Error ? error : new Error("Workspace save failed") };
+        state = { ...state, pendingSnapshot: snapshot, error: error instanceof Error ? error : new Error("Workspace save failed"), phase: "failed" };
         notify();
+        listeners.forEach((listener) => listener({ ...state }));
       }
       throw error;
     });
@@ -54,6 +60,7 @@ export function createSaveCoordinator(
     save,
     retry: () => state.pendingSnapshot ? save(state.pendingSnapshot) : Promise.resolve(),
     getState: () => ({ ...state }),
+    subscribe: (listener: (state: SaveCoordinatorState) => void) => { listeners.add(listener); return () => listeners.delete(listener); },
   };
 }
 
