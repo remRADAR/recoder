@@ -3,9 +3,16 @@ import { DEFAULT_PROJECT, type Project, type SourceFile, type WorkspaceSnapshot 
 export const MAX_WORKSPACE_SNAPSHOT_BYTES = 2 * 1024 * 1024;
 
 const now = () => Date.now();
+let workspaceUuidProvider: (() => string | undefined) | null = null;
+export function configureWorkspaceUuidProvider(provider: () => string | undefined) { workspaceUuidProvider = provider; }
 const id = (prefix: string) => {
-  const runtimeCrypto = globalThis.crypto as (Crypto & { randomUUID?: () => string }) | undefined;
-  const random = runtimeCrypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+  let random: string | undefined;
+  try { random = workspaceUuidProvider?.(); } catch { random = undefined; }
+  if (!random) {
+    const runtimeCrypto = globalThis.crypto as (Crypto & { randomUUID?: () => string }) | undefined;
+    random = runtimeCrypto?.randomUUID?.();
+  }
+  random ??= `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
   return `${prefix}-${random}`;
 };
 

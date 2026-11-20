@@ -32,4 +32,10 @@ Execution request admission is route-local and capped at 8 KB before the global 
 
 Workspace snapshots are validated and capped at 2 MB before persistence, imported text is capped at 1 MB, and failed saves are surfaced with a retry action while the last known good AsyncStorage value remains untouched. Export temporary files are cleaned up in a `finally` block. Editor and execution limits are measured in UTF-8 bytes, and the editor bridge reports typed rejection errors.
 
-`.github/workflows/ci.yml` runs frozen-lockfile installation, bundle generation, typecheck, lint, tests, API build, and generated-bundle cleanliness on pull requests and relevant pushes. CI has not been claimed green until GitHub executes the workflow; the local equivalent commands are the evidence reported for this commit.
+Rate-limit state is intentionally in-memory and per-process. Expired inactive IP/owner keys are pruned on requests, active keys are not evicted to make room for new cardinality, and the maps have a hard 10,000-key bound. Multiple users behind one NAT or shared proxy can therefore share an IP budget; this is a documented prototype limitation, not a distributed rate-limit guarantee. Native workspace IDs configure Expo Crypto `randomUUID()` when the adapter loads, with Web Crypto and a random fallback retained for unavailable runtimes.
+
+`.github/workflows/ci.yml` runs frozen-lockfile installation, bundle generation, typecheck, lint, tests, API build, and generated-bundle cleanliness on pull requests and relevant pushes. The previous remediation commit's runs passed; each new closure commit must be verified against its own run URL before claiming CI success.
+
+## Accepted M1 deferrals
+
+AUD-L03 (full-document replacement, cursor/selection preservation, and incremental editor updates) and AUD-L04 (WebView readiness fallback and stronger initialization-failure handling) remain explicitly deferred to M1. The current prototype uses a bounded full-document bridge and a readiness handshake; these are not represented as completed production editor behavior.

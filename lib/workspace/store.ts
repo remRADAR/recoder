@@ -1,14 +1,17 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as DocumentPicker from "expo-document-picker";
+import * as ExpoCrypto from "expo-crypto";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { type SourceFile, type WorkspaceSnapshot } from "@/shared/recoder";
 export { createFile, createInitialSnapshot, createProject, updateFile, validateWorkspaceSnapshot, MAX_WORKSPACE_SNAPSHOT_BYTES, utf8ByteLength } from "./core";
-import { createFile, createInitialSnapshot, createProject, updateFile, validateWorkspaceSnapshot, utf8ByteLength } from "./core";
-import { persistWorkspaceSnapshot } from "./persistence";
+import { configureWorkspaceUuidProvider, createFile, createInitialSnapshot, createProject, updateFile, validateWorkspaceSnapshot } from "./core";
+import { MAX_IMPORT_BYTES, persistWorkspaceSnapshot, readImportedTextAsset } from "./persistence";
+
+configureWorkspaceUuidProvider(() => ExpoCrypto.randomUUID?.());
 
 const STORAGE_KEY = "recoder.workspace.v1";
-export const MAX_IMPORT_BYTES = 1 * 1024 * 1024;
+export { MAX_IMPORT_BYTES } from "./persistence";
 
 export async function loadWorkspace(): Promise<WorkspaceSnapshot> {
   const raw = await AsyncStorage.getItem(STORAGE_KEY);
@@ -30,9 +33,7 @@ export async function importTextFile(): Promise<{ name: string; content: string 
   const result = await DocumentPicker.getDocumentAsync({ type: "text/*", copyToCacheDirectory: true });
   if (result.canceled || !result.assets?.[0]) return null;
   const asset = result.assets[0];
-  const content = await FileSystem.readAsStringAsync(asset.uri);
-  if (utf8ByteLength(content) > MAX_IMPORT_BYTES) throw new Error("Imported file exceeds the 1 MB limit");
-  return { name: asset.name || "imported.txt", content };
+  return readImportedTextAsset(asset, (uri) => FileSystem.readAsStringAsync(uri));
 }
 
 export async function exportTextFile(file: SourceFile): Promise<void> {

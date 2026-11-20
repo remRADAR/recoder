@@ -4,6 +4,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { CodeMirrorEditor } from "@/components/CodeMirrorEditor";
 import { disposableRemoteProvider } from "@/lib/execution/provider";
 import { createFile, createInitialSnapshot, createProject, exportTextFile, importTextFile, loadWorkspace, saveWorkspace, updateFile } from "@/lib/workspace/store";
+import { createSaveCoordinator } from "@/lib/workspace/persistence";
 import type { ExecutionSession, WorkspaceSnapshot } from "@/shared/recoder";
 
 const colors = { ink: "#f5f7fa", muted: "#a8b2c1", panel: "#111827", panel2: "#1c2635", line: "#2f3b4d", accent: "#7dd3fc", good: "#86efac", warn: "#fcd34d" };
@@ -18,10 +19,10 @@ export default function HomeScreen() {
   const [newName, setNewName] = useState("");
   const [polling, setPolling] = useState(false);
   const [persistenceError, setPersistenceError] = useState<string | null>(null);
-  const pendingSave = useRef<WorkspaceSnapshot | null>(null);
+  const saveCoordinator = useRef(createSaveCoordinator(saveWorkspace, (state) => setPersistenceError(state.error?.message ?? null)));
 
   useEffect(() => { loadWorkspace().then((value) => { setWorkspace(value); setLoaded(true); }); }, []);
-  useEffect(() => { if (loaded) void saveWorkspace(workspace).then(() => { pendingSave.current = null; setPersistenceError(null); }).catch((error) => { pendingSave.current = workspace; setPersistenceError(error instanceof Error ? error.message : "Workspace save failed"); }); }, [workspace, loaded]);
+  useEffect(() => { if (loaded) void saveCoordinator.current.save(workspace).catch(() => undefined); }, [workspace, loaded]);
 
   const project = workspace.projects.find((item) => item.id === workspace.activeProjectId) ?? workspace.projects[0];
   const file = project.files.find((item) => item.id === workspace.activeFileId) ?? project.files[0];
@@ -41,7 +42,7 @@ export default function HomeScreen() {
   const addFile = () => update(createFile(workspace, project.id, `file-${project.files.length + 1}.ts`));
   const importFile = async () => { try { const imported = await importTextFile(); if (!imported) return; const withFile = createFile(workspace, project.id, imported.name); update(updateFile(withFile, withFile.activeFileId, imported.content)); } catch (error) { Alert.alert("Import failed", error instanceof Error ? error.message : "The file could not be imported"); } };
   const exportFile = async () => { try { await exportTextFile(file); } catch (error) { Alert.alert("Export failed", error instanceof Error ? error.message : "The file could not be exported"); } };
-  const retrySave = async () => { if (!pendingSave.current) return; try { await saveWorkspace(pendingSave.current); pendingSave.current = null; setPersistenceError(null); } catch (error) { setPersistenceError(error instanceof Error ? error.message : "Workspace save failed"); } };
+  const retrySave = async () => { await saveCoordinator.current.retry().catch(() => undefined); };
   const output = useMemo(() => session?.events.map((item) => `[${item.stream}] ${item.text}`).join("\n") ?? "No execution started.", [session]);
 
   if (!loaded) return <ScreenContainer className="items-center justify-center"><ActivityIndicator color={colors.accent} /></ScreenContainer>;
@@ -51,7 +52,7 @@ export default function HomeScreen() {
       <View style={{ flexDirection: "row", gap: 8 }}><TextInput value={newName} onChangeText={setNewName} placeholder="New project name" placeholderTextColor={colors.muted} style={{ flex: 1, color: colors.ink, backgroundColor: colors.panel, borderColor: colors.line, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 }} /><Button label="Create" onPress={addProject} /></View>
       <View style={{ flexDirection: "row", gap: 8 }}><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>{workspace.projects.map((item) => <Button key={item.id} label={item.name} active={item.id === project.id} onPress={() => update({ ...workspace, activeProjectId: item.id, activeFileId: item.files[0].id })} />)}</ScrollView><Button label="+ File" onPress={addFile} /></View>
       <View style={{ backgroundColor: colors.panel, borderColor: colors.line, borderWidth: 1, borderRadius: 14, overflow: "hidden" }}><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 2, padding: 8 }}>{project.files.map((item) => <Pressable key={item.id} onPress={() => update({ ...workspace, activeFileId: item.id })} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: item.id === file.id ? colors.panel2 : "transparent" }}><Text style={{ color: item.id === file.id ? colors.ink : colors.muted, fontWeight: "700" }}>{item.name}</Text></Pressable>)}</ScrollView><View style={{ height: 360 }}><CodeMirrorEditor value={file.content} onChange={(content) => update(updateFile(workspace, file.id, content))} /></View></View>
-      {persistenceError && <View style={{ backgroundColor: "#451a03", borderColor: colors.warn, borderWidth: 1, borderRadius: 10, padding: 12, gap: 8 }}><Text style={{ color: colors.warn }}>Workspace save failed: {persistenceError}. The last known good snapshot is preserved.</Text><Button label="Retry save" onPress={() => void retrySave()} /></View>}
+      {persistenceError && <View style={{ backgroundColor: "#451a03", borderColor: colors.warn, borderWidth: 1, borderRadius: 10, padding: 12, gap: 8 }}><Text style={{ color: colors.warn }}>Workspace save failed: {persistenceError}. Your latest unsaved changes are retained.</Text><Button label="Retry latest save" onPress={() => void retrySave()} /></View>}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}><Button label="Import file" onPress={() => void importFile()} /><Button label="Export file" onPress={() => void exportFile()} /><Button label={busy ? "Starting…" : "Run simulated proof"} active onPress={() => void run()} disabled={busy || session?.status === "running"} />{session?.status === "running" && <Button label="Cancel" onPress={() => void (async () => { await disposableRemoteProvider.cancel(session.id); setSession(await disposableRemoteProvider.get(session.id)); setPolling(false); })()} />}</View>
       <View style={{ backgroundColor: colors.panel, borderColor: colors.line, borderWidth: 1, borderRadius: 14, padding: 14, gap: 8 }}><View style={{ flexDirection: "row", justifyContent: "space-between" }}><Text style={{ color: colors.ink, fontWeight: "800" }}>Execution session</Text><Text style={{ color: session?.status === "completed" ? colors.good : colors.warn, fontWeight: "700" }}>{session?.status ?? "idle"}</Text></View><Text style={{ color: colors.muted, fontSize: 12 }}>The proof accepts metadata only; it does not execute client-provided shell commands. Limit: 5 seconds. Isolation: simulated-disposable.</Text><Text selectable style={{ color: colors.ink, fontFamily: "monospace", fontSize: 12, lineHeight: 19 }}>{output}</Text></View>
     </ScrollView>
