@@ -25,7 +25,19 @@ export default function HomeScreen() {
   const [liveEvents, setLiveEvents] = useState<ExecutionSession["events"]>([]);
   const saveCoordinator = useRef(createSaveCoordinator(saveWorkspace, (state) => setPersistenceError(state.error?.message ?? null)));
 
-  useEffect(() => { loadWorkspace().then((value) => { setWorkspace(value); setLoaded(true); }); }, []);
+  useEffect(() => {
+    let mounted = true;
+    loadWorkspace().then((value) => {
+      if (!mounted) return;
+      setWorkspace(value);
+      setLoaded(true);
+    }).catch((error) => {
+      if (!mounted) return;
+      setPersistenceError(error instanceof Error ? error.message : "Workspace initialization failed.");
+      setLoaded(true);
+    });
+    return () => { mounted = false; };
+  }, []);
   useEffect(() => { if (loaded) void saveCoordinator.current.save(workspace).catch(() => undefined); }, [workspace, loaded]);
   useEffect(() => () => { if (server) void stopPreview(server.id); }, [server]);
   useEffect(() => { const unsubscribe = runtimeSelection.provider.subscribe?.((event) => { setLiveEvents((current) => [...current, { id: event.id, at: event.at, stream: event.stream, text: event.text }]); setOutputTruncated((current) => current || Boolean(event.outputTruncated)); }); return () => unsubscribe?.(); }, []);

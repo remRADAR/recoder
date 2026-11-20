@@ -145,16 +145,25 @@ jobs:
       - name: Generate Android project
         run: npx expo prebuild --platform android --no-install
 
-      - name: Compile debug APK
+      - name: Embed production JavaScript bundle
+        run: |
+          set -euo pipefail
+          mkdir -p android/app/src/main/assets
+          npx expo export:embed \
+            --platform android \
+            --dev false \
+            --bundle-output android/app/src/main/assets/index.android.bundle
+
+      - name: Compile standalone release APK
         run: |
           set -euo pipefail
           cd android
           chmod +x ./gradlew
-          ./gradlew :app:assembleDebug --no-daemon
+          ./gradlew :app:assembleRelease --no-daemon
 
-      - name: Upload Android debug artifact
+      - name: Upload Android standalone artifact
         uses: actions/upload-artifact@v4
         with:
-          name: recoder-android-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: recoder-android-device-release
+          path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 7
