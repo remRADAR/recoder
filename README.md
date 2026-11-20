@@ -23,23 +23,27 @@ The app remains an Expo/React Native project. The device-native runtime requires
 - `modules/recoder-runtime/android/.../RecoderRuntimeModule.kt` uses an application-owned WebView for JavaScript and a loopback `ServerSocket` for preview hosting. It does not execute arbitrary downloaded ELF files.
 - The app screen passes the selected project file content to the native runtime and passes the actual project files to the local server. The preview is a separate WebView loaded from the returned loopback URL.
 
-The execution WebView has no access to the trusted Recoder UI WebView, uses a non-persistent data store, and is disposed after completion, cancellation, or timeout. This is application sandboxing and context separation, not hostile-code OS isolation. There is no package manager, npm/pip installation, Node.js compatibility layer, LAN binding, public server, cloud execution, or background development server.
+The execution WebView has no access to the trusted Recoder UI WebView, uses a non-persistent data store, and is disposed after completion, cancellation, or timeout. Executed JavaScript can currently access network APIs; network-off-by-default is a future security improvement, not an existing capability. This is application sandboxing and context separation, not hostile-code OS isolation. There is no package manager, npm/pip installation, Node.js compatibility layer, LAN binding, public server, cloud execution, or background development server.
 
 ## Verification status
 
 Automated verification on the sandbox passed:
 
 - `pnpm check`
-- `pnpm test` — 52 passed, 1 existing skipped
+- `pnpm test` — 54 passed, 1 existing skipped
 - `pnpm lint`
 - `pnpm build`
 - `pnpm build:editor`
 
-The repository baseline was verified before implementation: `m0.5/prototype` and PR #1 head both resolved to `38522b31f42fb50523045bec711cdeec0fa7a3b1`. No physical iPhone 13 or physical Android device was available in this environment, so physical-device validation is **NOT YET VERIFIED**. Native Swift/Kotlin compilation and real localhost preview validation require an Expo development-client build on the target hardware or a simulator/emulator.
+`npx expo prebuild --no-install` completed and Expo autolinking discovered `@recoder/runtime` for both platforms. The required Android command, `cd android && ./gradlew :app:assembleDebug`, resolved the SDK 57 toolchain (`compileSdk 36`, `targetSdk 36`, Kotlin `2.1.20`) but could not start compilation because this sandbox has no Android SDK or `ANDROID_HOME`. Xcode, CocoaPods, and iOS simulator tooling are not installed here. Therefore native compilation is **NOT VERIFIED**, and physical iPhone 13 / Android validation is **NOT VERIFIED**.
 
 ## Safety boundary
 
-Project files are sent only to the native runtime module. The loopback server accepts only relative project paths and rejects absolute paths, parent traversal, and Windows-style separators. It binds to 127.0.0.1 and is shut down explicitly by the preview control. Execution has a bounded timeout and byte-limited output; cancellation destroys the WebView context. The implementation does not claim OS-level isolation from hostile code.
+Project files are sent only to the native runtime module. Each preview server has a cryptographically random token, requires that token on every request, accepts only relative project paths, rejects absolute/encoded traversal and Windows-style separators, and binds to 127.0.0.1. Request parsing and connections are bounded, and shutdown closes the listener. Execution has a bounded timeout, a two-session concurrency cap, ordered live stdout/stderr delivery, and explicit output truncation; cancellation destroys the WebView context. The implementation does not claim OS-level isolation from hostile code.
+
+## Remediation closure state
+
+F-01, F-02, F-03, F-04, F-05, F-06, F-07, F-08, F-09, and F-10 are addressed in source and covered by automated contract tests where platform-independent. Native compilation and simulator/device execution remain **NOT VERIFIED** because the required Apple and Android toolchains are unavailable in this environment. The authoritative audit text was not present as a repository file or PR review artifact; the remediation order was used as the finding-to-source mapping.
 
 ## Next step
 
