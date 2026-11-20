@@ -60,6 +60,7 @@ export function startDisposableSession(ownerId: OwnerId, projectName: string, fi
     events: [],
     isolation: "simulated-disposable",
     resourceLimitMs: LIMIT_MS,
+    outputLimitBytes: MAX_OUTPUT_BYTES,
   };
   sessions.set(id, session);
   event(session, "system", `Simulated disposable session started for ${projectName}/${fileName}`);

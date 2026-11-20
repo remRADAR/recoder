@@ -1,0 +1,160 @@
+name: Recoder M0.6 Native Compile
+
+on:
+  push:
+    branches:
+      - "m0.6/poc1-device-native-runtime"
+    paths:
+      - ".github/workflows/native-build.yml"
+      - "app.config.ts"
+      - "modules/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "app/**"
+      - "components/**"
+      - "lib/**"
+      - "shared/**"
+
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Native target to compile
+        required: true
+        type: choice
+        options:
+          - both
+          - ios
+          - android
+        default: both
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recoder-m06-native-compile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios-simulator-compile:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.platform == 'both' || inputs.platform == 'ios' }}
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build editor bundle
+        run: pnpm build:editor
+
+      - name: Report Apple toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Generate iOS project
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: Install CocoaPods
+        working-directory: ios
+        run: pod install
+
+      - name: Compile unsigned simulator application
+        run: |
+          set -euo pipefail
+          workspace="$(find ios -maxdepth 2 -name '*.xcworkspace' -print -quit)"
+          test -n "$workspace"
+
+          xcodebuild \
+            -workspace "$workspace" \
+            -scheme Recoder \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$GITHUB_WORKSPACE/build/ios-derived-data" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package simulator application
+        run: |
+          set -euo pipefail
+          app_path="build/ios-derived-data/Build/Products/Debug-iphonesimulator/Recoder.app"
+          test -d "$app_path"
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$app_path" build/Recoder-iOS-Simulator-Debug.zip
+
+      - name: Upload iOS simulator artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: recoder-ios-simulator-debug
+          path: build/Recoder-iOS-Simulator-Debug.zip
+          retention-days: 7
+
+  android-debug-compile:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.platform == 'both' || inputs.platform == 'android' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: "12266719"
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build editor bundle
+        run: pnpm build:editor
+
+      - name: Generate Android project
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Compile debug APK
+        run: |
+          set -euo pipefail
+          cd android
+          chmod +x ./gradlew
+          ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Upload Android debug artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: recoder-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
