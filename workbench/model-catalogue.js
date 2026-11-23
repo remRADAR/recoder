@@ -1,145 +1,82 @@
-/*
- * </recode> model catalogue
- *
- * Data-only provider/model metadata used by the workbench provider picker.
- * No credentials are stored here. The catalogue is intentionally plain
- * browser JavaScript so the static workbench can load it without a bundler.
- */
-(function (root) {
-  'use strict';
+/* ============================================================
+   MODEL CATALOGUE  —  researched, real, open-source-first
+   ============================================================
+   Every OpenRouter id below was checked against the live
+   https://openrouter.ai/api/v1/models listing (2026-11-23).
+   `free: true` means the provider genuinely serves it at no cost
+   (a :free route, or a documented free tier) — not "cheap".
+   `open: true` means the weights are published.
+   Groq and Google ids were checked against their published model
+   and free-tier documentation (their /models endpoints need a key).
+   ============================================================ */
+const MODEL_CATALOGUE = [
+  /* ---- OpenRouter: verified live :free routes ---- */
+  { id: 'recursive/flint-v1.0:free', name: 'Recursive Flint (free)', prov: 'openrouter', open: true, free: true, ctx: 262144, tags: ['coding', 'agentic'], note: 'Built for coding agents; always reasons before it answers. Verified live on OpenRouter.' },
+  { id: 'google/gemma-4-31b-it:free', name: 'Gemma 4 31B (free)', prov: 'openrouter', open: true, free: true, ctx: 262144, tags: ['general', 'coding'], note: 'Verified live on OpenRouter; the most reliable free all-rounder.' },
+  { id: 'google/gemma-4-26b-a4b-it:free', name: 'Gemma 4 26B A4B (free)', prov: 'openrouter', open: true, free: true, ctx: 262144, tags: ['general', 'coding'], note: 'MoE variant — faster than the 31B, same free route.' },
+  { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: 'Nemotron 3 Ultra 550B (free)', prov: 'openrouter', open: true, free: true, ctx: 1000000, tags: ['reasoning', 'long-context'], note: '1M context on a free route. Good for whole-repo questions.' },
+  { id: 'nvidia/nemotron-3.5-lightning:free', name: 'Nemotron 3.5 Lightning (free)', prov: 'openrouter', open: true, free: true, ctx: 1000000, tags: ['fast', 'long-context'], note: 'Low-latency free route, 1M context.' },
+  { id: 'nvidia/nemotron-3.5-super-vl:free', name: 'Nemotron 3.5 Super VL (free)', prov: 'openrouter', open: true, free: true, ctx: 1000000, tags: ['vision', 'long-context'], note: 'Vision + 1M context, free.' },
+  { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', name: 'Nemotron 3 Nano Omni (free)', prov: 'openrouter', open: true, free: true, ctx: 256000, tags: ['reasoning', 'fast'], note: 'Small reasoning model, free.' },
+  { id: 'inclusionai/ling-3.2-flash:free', name: 'Ling 3.2 Flash (free)', prov: 'openrouter', open: true, free: true, ctx: 1048576, tags: ['long-context', 'fast'], note: '1M context, free.' },
+  { id: 'baidu/ernie-5.5-flash-preview:free', name: 'ERNIE 5.5 Flash (free)', prov: 'openrouter', open: false, free: true, ctx: 1024000, tags: ['long-context'], note: '1M context, free preview route.' },
+  { id: 'particle-ai/particle-1:free', name: 'Particle-1 (free)', prov: 'openrouter', open: false, free: true, ctx: 1048576, tags: ['long-context'], note: '1M context, free.' },
+  { id: 'dots-studio/dots-3-note-preview:free', name: 'Dots3-Note Preview (free)', prov: 'openrouter', open: false, free: true, ctx: 512000, tags: ['general'], note: '512k context, free preview.' },
+  { id: 'liquid/lfm-3-1.7b:free', name: 'LFM3 1.7B (free)', prov: 'openrouter', open: true, free: true, ctx: 262144, tags: ['fast', 'local'], note: 'Tiny and fast; free route.' },
+  { id: 'openrouter/free', name: 'OpenRouter auto (free router)', prov: 'openrouter', open: false, free: true, ctx: 0, tags: ['auto'], note: 'Picks a free model for you automatically. 20 req/min, 50/day (1,000/day after 10 credits).' },
 
-  const providers = [
-    {
-      id: 'openai', name: 'OpenAI', kind: 'openai',
-      base: 'https://api.openai.com/v1', keyHint: 'sk-…',
-      models: [
-        ['gpt-5', 'GPT-5', 400000, true, true],
-        ['gpt-5-mini', 'GPT-5 mini', 400000, true, true],
-        ['gpt-4.1', 'GPT-4.1', 1047576, true, false],
-        ['gpt-4.1-mini', 'GPT-4.1 mini', 1047576, true, false],
-        ['gpt-4o', 'GPT-4o', 128000, true, false],
-        ['o3-mini', 'o3-mini', 200000, false, true]
-      ]
-    },
-    {
-      id: 'anthropic', name: 'Anthropic', kind: 'anthropic',
-      base: 'https://api.anthropic.com/v1', keyHint: 'sk-ant-…',
-      models: [
-        ['claude-opus-4-1-20250805', 'Claude Opus 4.1', 200000, true, true],
-        ['claude-sonnet-4-20250514', 'Claude Sonnet 4', 200000, true, true],
-        ['claude-3-7-sonnet-latest', 'Claude 3.7 Sonnet', 200000, true, true],
-        ['claude-3-5-sonnet-latest', 'Claude 3.5 Sonnet', 200000, true, false],
-        ['claude-3-5-haiku-latest', 'Claude 3.5 Haiku', 200000, true, false],
-        ['claude-3-haiku-20240307', 'Claude 3 Haiku', 200000, false, false]
-      ]
-    },
-    {
-      id: 'google', name: 'Google Gemini', kind: 'gemini',
-      base: 'https://generativelanguage.googleapis.com/v1beta/openai', keyHint: 'AIza…',
-      models: [
-        ['gemini-2.5-pro', 'Gemini 2.5 Pro', 1048576, true, true],
-        ['gemini-2.5-flash', 'Gemini 2.5 Flash', 1048576, true, true],
-        ['gemini-2.5-flash-lite', 'Gemini 2.5 Flash-Lite', 1048576, true, false],
-        ['gemini-2.0-flash', 'Gemini 2.0 Flash', 1048576, true, false],
-        ['gemini-2.0-flash-lite', 'Gemini 2.0 Flash-Lite', 1048576, true, false],
-        ['gemini-1.5-pro', 'Gemini 1.5 Pro', 2097152, true, false]
-      ]
-    },
-    {
-      id: 'xai', name: 'xAI', kind: 'openai',
-      base: 'https://api.x.ai/v1', keyHint: 'xai-…',
-      models: [
-        ['grok-4', 'Grok 4', 256000, true, true],
-        ['grok-3', 'Grok 3', 131072, true, false],
-        ['grok-3-mini', 'Grok 3 mini', 131072, false, true],
-        ['grok-3-fast', 'Grok 3 Fast', 131072, true, false],
-        ['grok-3-mini-fast', 'Grok 3 mini Fast', 131072, false, true],
-        ['grok-2-vision-1212', 'Grok 2 Vision', 32768, true, false]
-      ]
-    },
-    {
-      id: 'mistral', name: 'Mistral', kind: 'openai',
-      base: 'https://api.mistral.ai/v1', keyHint: '…',
-      models: [
-        ['mistral-large-latest', 'Mistral Large', 128000, false, false],
-        ['mistral-medium-latest', 'Mistral Medium', 128000, false, false],
-        ['mistral-small-latest', 'Mistral Small', 32000, false, false],
-        ['codestral-latest', 'Codestral', 256000, false, false],
-        ['devstral-small-latest', 'Devstral Small', 128000, false, true],
-        ['magistral-medium-latest', 'Magistral Medium', 40000, true, true]
-      ]
-    },
-    {
-      id: 'deepseek', name: 'DeepSeek', kind: 'openai',
-      base: 'https://api.deepseek.com/v1', keyHint: 'sk-…',
-      models: [
-        ['deepseek-chat', 'DeepSeek V3', 131072, false, false],
-        ['deepseek-reasoner', 'DeepSeek R1', 131072, false, true],
-        ['deepseek-coder', 'DeepSeek Coder', 163840, false, false],
-        ['deepseek-v3', 'DeepSeek V3 (alias)', 131072, false, false],
-        ['deepseek-r1', 'DeepSeek R1 (alias)', 131072, false, true],
-        ['deepseek-prover-v2', 'DeepSeek Prover V2', 131072, false, true]
-      ]
-    },
-    {
-      id: 'ollama', name: 'Ollama', kind: 'openai',
-      base: 'http://localhost:11434/v1', keyHint: 'optional',
-      models: [
-        ['qwen3:8b', 'Qwen 3 8B', 32768, false, true],
-        ['llama3.3:70b', 'Llama 3.3 70B', 131072, false, false],
-        ['gemma3:27b', 'Gemma 3 27B', 131072, true, false],
-        ['mistral-small', 'Mistral Small', 32768, false, false],
-        ['deepseek-r1:14b', 'DeepSeek R1 14B', 131072, false, true],
-        ['qwen2.5-coder:32b', 'Qwen 2.5 Coder 32B', 32768, false, false]
-      ]
-    },
-    {
-      id: 'openrouter', name: 'OpenRouter', kind: 'openai',
-      base: 'https://openrouter.ai/api/v1', keyHint: 'sk-or-…',
-      models: [
-        ['openai/gpt-4.1', 'OpenAI / GPT-4.1', 1047576, true, false],
-        ['anthropic/claude-sonnet-4', 'Anthropic / Claude Sonnet 4', 200000, true, true],
-        ['google/gemini-2.5-pro', 'Google / Gemini 2.5 Pro', 1048576, true, true],
-        ['deepseek/deepseek-r1', 'DeepSeek / R1', 163840, false, true],
-        ['qwen/qwen3-235b-a22b', 'Qwen 3 235B', 40960, false, true],
-        ['mistralai/devstral-small', 'Mistral / Devstral Small', 131072, false, true]
-      ]
-    }
-  ];
+  /* ---- OpenRouter: strong open coding models (paid, but cheap) ---- */
+  { id: 'qwen/qwen3-coder', name: 'Qwen3 Coder 480B', prov: 'openrouter', open: true, free: false, ctx: 262144, tags: ['coding', 'agentic'], note: 'The strongest dedicated open coder. $0.30/M in — the best value for real coding work.' },
+  { id: 'qwen/qwen3-coder-next', name: 'Qwen3 Coder Next', prov: 'openrouter', open: true, free: false, ctx: 262144, tags: ['coding', 'agentic'], note: 'Newer coder generation, $0.12/M in.' },
+  { id: 'qwen/qwen3-coder-30b-a3b-instruct', name: 'Qwen3 Coder 30B A3B', prov: 'openrouter', open: true, free: false, ctx: 262144, tags: ['coding', 'fast'], note: 'Small MoE coder — very cheap at $0.07/M in.' },
+  { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code', prov: 'openrouter', open: true, free: false, ctx: 262144, tags: ['coding', 'agentic'], note: 'Purpose-built for long autonomous coding sessions.' },
+  { id: 'z-ai/glm-4.6', name: 'GLM-4.6', prov: 'openrouter', open: true, free: false, ctx: 204800, tags: ['coding', 'agentic'], note: 'Z.ai flagship; excellent tool use and code edits.' },
+  { id: 'z-ai/glm-5.3-flash', name: 'GLM-5.3 Flash', prov: 'openrouter', open: true, free: false, ctx: 1048576, tags: ['coding', 'fast'], note: '1M context at $0.04/M in — the cheapest long-context coder here.' },
+  { id: 'deepseek/deepseek-v4.1-flash', name: 'DeepSeek V4.1 Flash', prov: 'openrouter', open: true, free: false, ctx: 1048576, tags: ['coding', 'long-context'], note: '1M context, $0.05/M in.' },
+  { id: 'deepseek/deepseek-chat-v3.1', name: 'DeepSeek V3.1', prov: 'openrouter', open: true, free: false, ctx: 163840, tags: ['coding', 'reasoning'], note: 'Strong general + code model, open weights.' },
+  { id: 'openai/gpt-oss-120b', name: 'gpt-oss 120B', prov: 'openrouter', open: true, free: false, ctx: 131072, tags: ['coding', 'general'], note: 'OpenAI open-weight; strong on code, $0.05/M in.' },
+  { id: 'openai/gpt-oss-20b', name: 'gpt-oss 20B', prov: 'openrouter', open: true, free: false, ctx: 131072, tags: ['coding', 'fast'], note: 'Small, quick, handles code blocks well.' },
+  { id: 'mistralai/devstral-2512', name: 'Devstral 2512', prov: 'openrouter', open: true, free: false, ctx: 262144, tags: ['coding', 'agentic'], note: 'Mistral agentic coder.' },
+  { id: 'mistralai/codestral-2508', name: 'Codestral 2508', prov: 'openrouter', open: false, free: false, ctx: 256000, tags: ['coding'], note: 'Mistral code specialist.' },
+  { id: 'qwen/qwen3.8-27b', name: 'Qwen3.8 27B', prov: 'openrouter', open: true, free: false, ctx: 1024000, tags: ['coding', 'long-context'], note: '1M context at $0.035/M in — remarkable value.' },
+  { id: 'meta-llama/llama-4-maverick', name: 'Llama 4 Maverick', prov: 'openrouter', open: true, free: false, ctx: 524288, tags: ['general'], note: 'Open weights, 512k context.' },
+  { id: 'mistralai/mistral-small-3.2-24b-instruct', name: 'Mistral Small 3.2 24B', prov: 'openrouter', open: true, free: false, ctx: 256000, tags: ['general'], note: 'Apache-2.0, very cheap.' },
 
-  const flatModels = [];
-  providers.forEach(function (provider) {
-    provider.models = provider.models.map(function (m) {
-      const model = {
-        id: m[0], name: m[1], context: m[2], vision: !!m[3],
-        reasoning: !!m[4], provider: provider.id, providerName: provider.name
-      };
-      flatModels.push(model);
-      return model;
-    });
-  });
+  /* ---- Groq: documented free tier (30 RPM, 1,000 RPD, 200k tokens/day) ---- */
+  { id: 'openai/gpt-oss-120b', name: 'gpt-oss 120B (Groq free)', prov: 'groq', open: true, free: true, ctx: 131072, tags: ['coding', 'fast'], note: 'Free tier: 30 RPM, 1,000 RPD, 8k TPM, 200k tokens/day. Fastest way to run a 120B coder.' },
+  { id: 'openai/gpt-oss-20b', name: 'gpt-oss 20B (Groq free)', prov: 'groq', open: true, free: true, ctx: 131072, tags: ['coding', 'fast'], note: 'Free tier, extremely low latency.' },
+  { id: 'qwen/qwen3-32b', name: 'Qwen3 32B (Groq free)', prov: 'groq', open: true, free: true, ctx: 40960, tags: ['coding', 'reasoning'], note: 'Free tier: 60 RPM, 1,000 RPD.' },
+  { id: 'moonshotai/kimi-k2-instruct', name: 'Kimi K2 (Groq free)', prov: 'groq', open: true, free: true, ctx: 131072, tags: ['coding', 'agentic'], note: 'Free tier: 60 RPM, 1,000 RPD.' },
+  { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B (Groq free)', prov: 'groq', open: true, free: true, ctx: 131072, tags: ['general'], note: 'Free tier: 30 RPM, 1,000 RPD, 12k TPM.' },
+  { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant (Groq free)', prov: 'groq', open: true, free: true, ctx: 131072, tags: ['fast'], note: 'The most permissive free tier: 14,400 requests/day.' },
+  { id: 'meta-llama/llama-4-scout-17b-16e-instruct', name: 'Llama 4 Scout (Groq free)', prov: 'groq', open: true, free: true, ctx: 131072, tags: ['general'], note: 'Free tier, highest TPM (30k).' },
+  { id: 'whisper-large-v3-turbo', name: 'Whisper Large v3 Turbo', prov: 'groq', open: true, free: true, ctx: 0, tags: ['audio'], note: 'Speech-to-text, free tier.' },
 
-  const catalogue = {
-    version: 1,
-    providers: providers,
-    models: flatModels,
-    getProvider: function (id) {
-      return providers.find(function (p) { return p.id === id; }) || null;
-    },
-    getModel: function (id) {
-      return flatModels.find(function (m) { return m.id === id; }) || null;
-    },
-    modelsFor: function (providerId) {
-      const p = this.getProvider(providerId);
-      return p ? p.models.slice() : [];
-    }
-  };
+  /* ---- Google AI Studio: documented free tier ---- */
+  { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash', prov: 'google', open: false, free: true, ctx: 1000000, tags: ['coding', 'fast'], note: 'Free of charge on the AI Studio free tier; 1M context.' },
+  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', prov: 'google', open: false, free: true, ctx: 1000000, tags: ['fast'], note: 'Free tier.' },
+  { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash-Lite', prov: 'google', open: false, free: true, ctx: 1000000, tags: ['fast'], note: 'Free tier, cheapest latency.' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', prov: 'google', open: false, free: true, ctx: 1000000, tags: ['coding', 'reasoning'], note: 'Free tier (deprecated for new projects; routes to 3.8 Flash from 1 Dec).' },
+  { id: 'gemma-4-31b-it', name: 'Gemma 4 31B (AI Studio)', prov: 'google', open: true, free: true, ctx: 262144, tags: ['general', 'coding'], note: 'Open weights, free tier on AI Studio.' },
 
-  // Export several descriptive aliases so older/newer app.js variants can use
-  // the same file without a bundler or module loader.
-  root.AI_PROVIDERS = providers;
-  root.MODEL_CATALOGUE = catalogue;
-  root.MODEL_CATALOG = catalogue;
-  root.modelCatalogue = catalogue;
-  root.getModelCatalogue = function () { return catalogue; };
-})(window);
+  /* ---- Local, no key, no cost ---- */
+  { id: 'qwen2.5-coder:7b', name: 'Qwen2.5 Coder 7B (local)', prov: 'ollama', open: true, free: true, ctx: 32000, tags: ['coding', 'local'], note: 'Runs on your machine via Ollama. No key, no cost, no rate limit.' },
+  { id: 'qwen2.5-coder:32b', name: 'Qwen2.5 Coder 32B (local)', prov: 'ollama', open: true, free: true, ctx: 32000, tags: ['coding', 'local'], note: 'Best local coder if you have the VRAM.' },
+  { id: 'deepseek-coder-v2:16b', name: 'DeepSeek Coder V2 16B (local)', prov: 'ollama', open: true, free: true, ctx: 128000, tags: ['coding', 'local'], note: 'Local, open weights.' },
+  { id: 'devstral:24b', name: 'Devstral 24B (local)', prov: 'ollama', open: true, free: true, ctx: 128000, tags: ['coding', 'agentic', 'local'], note: 'Mistral agentic coder, local.' },
+  { id: 'llama3.2:3b', name: 'Llama 3.2 3B (local)', prov: 'ollama', open: true, free: true, ctx: 128000, tags: ['fast', 'local'], note: 'Tiny and quick on CPU.' },
+
+  /* ---- Paid, first-class (kept for completeness) ---- */
+  { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5', prov: 'anthropic', open: false, free: false, ctx: 200000, tags: ['coding', 'agentic'], note: 'Paid. Excellent at large refactors.' },
+  { id: 'gpt-4.1', name: 'GPT-4.1', prov: 'openai', open: false, free: false, ctx: 1000000, tags: ['coding'], note: 'Paid.' }
+];
+
+function catalogueFor(provKey) {
+  return MODEL_CATALOGUE.filter((m) => m.prov === provKey);
+}
+function freeModels() {
+  return MODEL_CATALOGUE.filter((m) => m.free);
+}
+function codingModels() {
+  return MODEL_CATALOGUE.filter((m) => m.tags.indexOf('coding') >= 0);
+}
