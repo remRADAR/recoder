@@ -1,5 +1,5 @@
 import type { AgentRuntimeEvent } from "./runtime";
-import { createDefaultCapabilityRegistry, type CapabilityRegistry, type CapabilitySurface } from "./capabilities";
+import { createDefaultCapabilityRegistry, type CapabilityDescriptor, type CapabilityRegistry, type CapabilitySurface } from "./capabilities";
 
 export type GovernedPhase = "draft" | "awaiting_approval" | "applying" | "verifying" | "completed" | "failed" | "cancelled";
 export type GovernedOperation = {
@@ -22,6 +22,23 @@ export type GovernedTaskState = {
 };
 export type GovernedTaskExecutor = (operation: GovernedOperation) => Promise<void>;
 export type GovernedTaskVerifier = (plan: GovernedPlan) => Promise<void>;
+export type GovernedApprovalRequest = { operation: GovernedOperation; capability: CapabilityDescriptor };
+
+export async function requestGovernedApproval(input: {
+  operation: GovernedOperation;
+  surface: CapabilitySurface;
+  registry?: CapabilityRegistry;
+  approve?: (request: GovernedApprovalRequest) => Promise<boolean>;
+}): Promise<boolean> {
+  const registry = input.registry ?? createDefaultCapabilityRegistry();
+  const capability = registry.get(input.operation.capabilityId);
+  if (!capability) throw new Error(`Unknown capability: ${input.operation.capabilityId}`);
+  if (!capability.enabled) throw new Error(`Capability is disabled: ${input.operation.capabilityId}`);
+  if (!capability.availability.includes("all") && !capability.availability.includes(input.surface)) throw new Error(`Capability unavailable on ${input.surface}: ${input.operation.capabilityId}`);
+  if (!(input.operation.requiresApproval ?? capability.requiresApproval)) return true;
+  if (!input.approve) return false;
+  return input.approve({ operation: { ...input.operation, requiresApproval: true }, capability });
+}
 
 function event(events: AgentRuntimeEvent[], kind: AgentRuntimeEvent["kind"], text: string, onEvent?: (value: AgentRuntimeEvent) => void) {
   const next = { id: events.length + 1, kind, text, at: Date.now() };

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { loadAgentSettings, type AgentProfile } from "@/lib/agents/config";
 import { runAgentTask, type AgentRuntimeEvent } from "@/lib/agents/runtime";
+import type { GovernedApprovalRequest } from "@/lib/agents/governed";
 import type { Project, SourceFile, WorkspaceSnapshot } from "@/shared/recoder";
 
 const colors = { canvas: "#080D18", panel: "#101827", raised: "#172235", line: "#2A3A50", ink: "#F5F7FA", muted: "#9BAAC0", subtle: "#6D7D93", accent: "#38BDF8", accentSoft: "#10364B", good: "#86EFAC", warn: "#FCD34D", danger: "#FCA5A5" };
@@ -15,6 +16,8 @@ export function AgentTaskPanel({ project, file, workspace, onWorkspaceChange, on
   const [events, setEvents] = useState<AgentRuntimeEvent[]>([]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingApproval, setPendingApproval] = useState<GovernedApprovalRequest | null>(null);
+  const approvalResolver = useRef<((approved: boolean) => void) | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -26,6 +29,9 @@ export function AgentTaskPanel({ project, file, workspace, onWorkspaceChange, on
     }).catch(() => undefined);
     return () => { mounted = false; };
   }, [running]);
+  useEffect(() => () => { approvalResolver.current?.(false); approvalResolver.current = null; }, []);
+  const requestApproval = (request: GovernedApprovalRequest) => new Promise<boolean>((resolve) => { approvalResolver.current = resolve; setPendingApproval(request); });
+  const settleApproval = (approved: boolean) => { approvalResolver.current?.(approved); approvalResolver.current = null; setPendingApproval(null); };
 
   const run = async () => {
     const agent = agents.find((item) => item.id === agentId);
@@ -33,7 +39,7 @@ export function AgentTaskPanel({ project, file, workspace, onWorkspaceChange, on
     if (!task.trim()) return setError("Describe what you want the agent to do.");
     setRunning(true); setError(null); setEvents([]);
     try {
-      const result = await runAgentTask({ agent, project, workspace, task, runFile: onRunFile, onEvent: (event) => setEvents((current) => [...current, event]) });
+      const result = await runAgentTask({ agent, project, workspace, task, runFile: onRunFile, surface: Platform.OS === "web" ? "web" : "native", requestApproval, onEvent: (event) => setEvents((current) => [...current, event]) });
       onWorkspaceChange(result.workspace);
       setTask("");
     } catch (cause) {
@@ -56,5 +62,6 @@ export function AgentTaskPanel({ project, file, workspace, onWorkspaceChange, on
       <Pressable onPress={onOpenSettings} style={{ minHeight: 40, alignItems: "center", justifyContent: "center", borderRadius: 9, backgroundColor: colors.raised, borderColor: colors.line, borderWidth: 1 }}><Text style={{ color: colors.muted, fontWeight: "800", fontSize: 11 }}>Manage agents & providers</Text></Pressable>
       <Text style={{ color: colors.subtle, fontSize: 10, lineHeight: 15, paddingBottom: 18 }}>Agent tools are bounded to the active workspace. API keys stay in native SecureStore and are used only for the selected provider request.</Text>
     </ScrollView>
+    <Modal visible={Boolean(pendingApproval)} transparent animationType="fade" onRequestClose={() => settleApproval(false)}><View style={{ flex: 1, backgroundColor: "rgba(2,6,23,0.86)", justifyContent: "center", padding: 20 }}><View style={{ backgroundColor: colors.panel, borderColor: colors.line, borderWidth: 1, borderRadius: 14, padding: 16, gap: 12 }}><Text style={{ color: colors.warn, fontSize: 10, fontWeight: "900", letterSpacing: 1 }}>APPROVAL REQUIRED</Text><Text style={{ color: colors.ink, fontSize: 18, fontWeight: "900" }}>{pendingApproval?.capability.label}</Text><Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>{pendingApproval?.operation.summary}{pendingApproval?.operation.resource ? ` · ${pendingApproval.operation.resource}` : ""}</Text><Text style={{ color: colors.subtle, fontSize: 11, lineHeight: 16 }}>Risk: {pendingApproval?.capability.risk}. Permission: {pendingApproval?.capability.permissions.join(", ")}.</Text><View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8 }}><Pressable onPress={() => settleApproval(false)} style={{ minHeight: 44, minWidth: 100, alignItems: "center", justifyContent: "center", borderRadius: 9, borderColor: colors.line, borderWidth: 1, backgroundColor: colors.raised }}><Text style={{ color: colors.muted, fontWeight: "800", fontSize: 12 }}>Reject</Text></Pressable><Pressable onPress={() => settleApproval(true)} style={{ minHeight: 44, minWidth: 100, alignItems: "center", justifyContent: "center", borderRadius: 9, borderColor: colors.accent, borderWidth: 1, backgroundColor: colors.accentSoft }}><Text style={{ color: colors.accent, fontWeight: "900", fontSize: 12 }}>Approve</Text></Pressable></View></View></View></Modal>
   </View>;
 }

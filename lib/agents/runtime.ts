@@ -1,4 +1,5 @@
 import { getAgentRuntimeConfig, type AgentProfile } from "@/lib/agents/config";
+import { requestGovernedApproval, type GovernedApprovalRequest } from "./governed";
 import type { Project, SourceFile, WorkspaceSnapshot } from "@/shared/recoder";
 
 type ChatMessage = { role: "system" | "user" | "assistant" | "tool"; content: string; tool_call_id?: string; tool_calls?: ToolCall[] };
@@ -17,6 +18,8 @@ type RunAgentTaskInput = {
   workspace: WorkspaceSnapshot;
   task: string;
   runFile: (file: SourceFile) => Promise<string>;
+  surface?: "web" | "native" | "server";
+  requestApproval?: (request: GovernedApprovalRequest) => Promise<boolean>;
   onEvent?: (event: AgentRuntimeEvent) => void;
 };
 
@@ -123,6 +126,9 @@ export async function runAgentTask(input: RunAgentTaskInput): Promise<AgentTaskR
       const args = parseArguments(call);
       emit(events, { kind: "tool", text: `${name}${args.path ? ` · ${args.path}` : ""}` }, input.onEvent);
       try {
+        const capabilityId = name === "run_file" ? "recoder.runtime.run" : name === "write_file" || name === "append_file" ? "recoder.workspace.write" : "recoder.workspace.read";
+        const approved = await requestGovernedApproval({ operation: { id: call.id, capabilityId, summary: `${name}${args.path ? ` ${args.path}` : ""}`, resource: args.path, input: args }, surface: input.surface ?? "native", approve: input.requestApproval });
+        if (!approved) throw new Error("Operation rejected by user approval policy.");
         const result = await executeTool(name, args, current, input.runFile);
         messages.push({ role: "tool", tool_call_id: call.id, content: result.slice(0, MAX_READ_CHARS) });
       } catch (error) {
