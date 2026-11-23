@@ -4,12 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>&lt;/recode&gt; — workbench</title>
-<link rel="stylesheet" href="app.css?v=9">
-<link rel="stylesheet" href="animation.css?v=1">
-<link rel="icon" type="image/png" sizes="512x512" href="brand/recode-favicon.png">
-<link rel="apple-touch-icon" sizes="512x512" href="brand/recode-favicon.png">
-<link rel="manifest" href="recode.webmanifest">
-<meta name="theme-color" content="#080a09">
+<link rel="stylesheet" href="app.css?v=11">
 </head>
 <body>
 <div class="app">
@@ -288,9 +283,11 @@
           <img class="br-shot hidden" id="br-shot" alt="Live page">
           <div class="br-empty" id="br-empty">
             <div>
-              <b>No live session.</b><br>
-              Type an address above and press Enter &mdash; the app opens a real<br>
-              Playwright/Chromium session on its own server and drives it here.
+              <b>No live browser server set.</b><br>
+              A live session needs a real Playwright/Chromium process, so the app<br>
+              connects to one you host. Run <code>server/deploy.sh</code> and paste<br>
+              the URL it prints into <b>Live browser server</b> &mdash; then any address<br>
+              you type here is driven for real.
             </div>
           </div>
           <div class="br-cursor" id="br-cursor"><span class="ring"></span></div>
@@ -325,6 +322,38 @@
             </div>
           </div>
         </aside>
+      </div>
+
+      <!-- ===== Playwright trace viewer ===== -->
+      <div class="trv" id="trv">
+        <div class="trv-head">
+          <div class="trv-title">
+            <span class="trv-badge">trace</span>
+            <span class="trv-nm" id="trv-name">trace</span>
+            <span class="trv-meta" id="trv-meta"></span>
+          </div>
+          <div class="trv-acts">
+            <a class="trv-link" id="trv-zip" href="#" target="_blank" rel="noopener" download>trace.zip</a>
+            <button class="trv-x" id="trv-close" title="Close the trace viewer">&#10005;</button>
+          </div>
+        </div>
+        <div class="trv-body">
+          <div class="trv-stage">
+            <div class="trv-shotwrap">
+              <img class="trv-shot" id="trv-shot" alt="Recorded frame">
+              <div class="trv-empty" id="trv-empty">Pick an action to see the frame it ran against.</div>
+            </div>
+            <div class="trv-bar">
+              <button class="trv-btn" id="trv-prev" title="Previous action">&#8592;</button>
+              <button class="trv-btn play" id="trv-play">&#9654; Play</button>
+              <button class="trv-btn" id="trv-next" title="Next action">&#8594;</button>
+              <input type="range" id="trv-range" min="0" max="0" value="0">
+              <span class="trv-pos" id="trv-pos">0 / 0</span>
+            </div>
+            <div class="trv-detail" id="trv-detail"></div>
+          </div>
+          <div class="trv-list" id="trv-list"></div>
+        </div>
       </div>
     </div>
 
@@ -451,13 +480,13 @@
     <div class="modal-head">
       <div>
         <h3>Sign in to GitHub</h3>
-        <p>&lt;/recode&gt; talks to the GitHub REST API directly from this device. Your token is kept in this browser only.</p>
+        <p>recoder talks to the GitHub REST API directly from this device. Your token is kept in this browser only.</p>
       </div>
       <button class="x" data-mclose="m-signin">✕</button>
     </div>
     <div class="modal-body">
       <ol class="steps">
-        <li>Open <a href="https://github.com/settings/tokens/new?scopes=repo,read:user&amp;description=recode%20workbench" target="_blank" rel="noopener">github.com/settings/tokens/new</a></li>
+        <li>Open <a href="https://github.com/settings/tokens/new?scopes=repo,read:user&amp;description=recoder%20workbench" target="_blank" rel="noopener">github.com/settings/tokens/new</a></li>
         <li>Select the <b>repo</b> scope (needed to clone, push and open pull requests)</li>
         <li>Generate the token and paste it below</li>
       </ol>
@@ -636,7 +665,7 @@
       <div class="fld">
         <label for="ls-url">Server URL</label>
         <input id="ls-url" spellcheck="false" placeholder="https://your-live-browser-host">
-        <div class="sub">Leave empty to use this page's own origin. The server is <code>server/live_browser.py</code> — run it with <code>python3 live_browser.py</code> and expose it with a tunnel if the app is hosted elsewhere.</div>
+        <div class="sub">The server is <code>server/live_browser.py</code>. Deploy it with <code>server/deploy.sh</code> (Fly.io, one command) or run <code>python3 live_browser.py</code> anywhere with Chromium. There is no default: a live browser needs a real process, so the app will not pretend to have one.</div>
       </div>
       <div class="fld">
         <label for="ls-token">Access token <span style="color:var(--dim2);font-weight:400">(optional)</span></label>
@@ -744,7 +773,7 @@
 
 <script src="model-catalogue.js?v=9"></script>
 <script src="radarmatrix.js?v=9"></script>
-<script src="live-browser.js?v=9"></script>
+<script src="live-browser.js?v=12"></script>
 <script src="manus.js?v=9"></script>
 <script src="app.js?v=9"></script>
 </body>
