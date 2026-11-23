@@ -124,12 +124,12 @@ const config: ExpoConfig & { logoUrl: string } = {
     [
       "expo-splash-screen",
       {
-        image: "./assets/branding/recode-splash.png",
+        image: "./assets/branding/recode-splash-ios-portrait.png",
         imageWidth: 200,
         resizeMode: "contain",
-        backgroundColor: "#ffffff",
+        backgroundColor: "#080a09",
         dark: {
-          backgroundColor: "#000000",
+          backgroundColor: "#080a09",
         },
       },
     ],
