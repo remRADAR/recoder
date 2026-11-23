@@ -166,13 +166,44 @@
     const dirty = byId('ed-dirty'); if (dirty) dirty.style.display = state.dirty.has(state.activeFile) ? '' : 'none';
     if (ta) ta.scrollTop = ta.scrollTop;
   }
-  /* Token classes match app.css: .k keyword, .s string, .c comment. */
+  /* Token classes match app.css: .k keyword, .s string, .c comment.
+     Single left-to-right pass. The previous version escaped the line first
+     and then ran regexes over the result, which (a) never matched a
+     double-quoted string because `"` had already become `&quot;`, and
+     (b) matched `class` inside the `<span class="s">` markup it had just
+     inserted, emitting broken HTML. Scanning the raw line avoids both. */
+  const HL_KEYWORDS = /^(?:const|let|var|function|return|export|import|from|async|await|class|new|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|typeof|instanceof|interface|type|enum|extends|implements|public|private|protected|readonly|static|void|number|string|boolean|any|unknown|never|null|undefined|true|false)\b/;
   function highlight(line) {
-    let s = esc(line);
-    s = s.replace(/(\/\/.*)$/g, '<span class="c">$1</span>');
-    s = s.replace(/(['"`])((?:\\.|(?!\1).)*)\1/g, '<span class="s">$1$2$1</span>');
-    s = s.replace(/\b(const|let|var|function|return|export|import|from|async|await|class|new)\b/g, '<span class="k">$1</span>');
-    return s || '&nbsp;';
+    let out = '';
+    let i = 0;
+    const n = line.length;
+    while (i < n) {
+      const rest = line.slice(i);
+      if (rest.startsWith('//')) { out += '<span class="c">' + esc(rest) + '</span>'; break; }
+      const ch = line[i];
+      if (ch === '"' || ch === "'" || ch === '`') {
+        let j = i + 1;
+        while (j < n) {
+          if (line[j] === '\\') { j += 2; continue; }
+          if (line[j] === ch) { j++; break; }
+          j++;
+        }
+        out += '<span class="s">' + esc(line.slice(i, j)) + '</span>';
+        i = j; continue;
+      }
+      if (/[A-Za-z_$]/.test(ch)) {
+        const before = i === 0 ? '' : line[i - 1];
+        const m = !/[A-Za-z0-9_$]/.test(before) ? rest.match(HL_KEYWORDS) : null;
+        if (m) { out += '<span class="k">' + esc(m[0]) + '</span>'; i += m[0].length; continue; }
+        let j = i;
+        while (j < n && /[A-Za-z0-9_$]/.test(line[j])) j++;
+        out += esc(line.slice(i, j));
+        i = j; continue;
+      }
+      out += esc(ch);
+      i++;
+    }
+    return out || '&nbsp;';
   }
   function markDirty() {
     const ta = byId('editor-ta'); if (!ta || !state.activeFile) return;
