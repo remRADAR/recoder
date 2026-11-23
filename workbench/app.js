@@ -84,18 +84,20 @@
   }
   root.openModal = openModal; root.closeModal = closeModal;
 
+  /* View switching. The browser and marketplace surfaces are full-bleed
+     overlays inside .work, so they are toggled with the same `.on` class
+     their own CSS uses — not a separate `view-on` state. */
   function setView(view) {
     state.view = view;
-    $$('.main, .browser, .mkt').forEach(function (el) { el.classList.remove('view-on'); });
+    $$('.browser, .mkt').forEach(function (el) { el.classList.remove('on'); });
     const browser = byId('browser'); const mkt = byId('mkt');
-    if (view === 'browser' && browser) browser.classList.add('view-on');
-    else if (view === 'marketplace' && mkt) mkt.classList.add('view-on');
+    if (view === 'browser' && browser) browser.classList.add('on');
+    else if (view === 'marketplace' && mkt) mkt.classList.add('on');
     $$('.rail button[data-view], [data-bnav]').forEach(function (el) {
       el.classList.toggle('on', (el.dataset.view || el.dataset.bnav) === view);
     });
-    if (view !== 'browser' && browser) browser.classList.remove('view-on');
-    if (view !== 'marketplace' && mkt) mkt.classList.remove('view-on');
-    if (view === 'editor') $('.main') && $('.main').classList.add('view-on');
+    if (view !== 'browser' && browser) browser.classList.remove('on');
+    if (view !== 'marketplace' && mkt) mkt.classList.remove('on');
   }
 
   function setPane(pane) {
@@ -111,13 +113,15 @@
     if (pane === 'settings') renderSettingsPane();
   }
 
+  /* The tree and the code view use the class names app.css styles:
+     .row/.fi/.nm for a file row, .ln-row/.ln/.lc for a code line. */
   function renderTree() {
     const tree = byId('tree'); if (!tree) return;
     const names = Object.keys(state.files).sort();
     tree.innerHTML = names.map(function (name) {
       const active = name === state.activeFile ? ' active' : '';
       const dirty = state.dirty.has(name) ? '<span class="dirty">●</span>' : '';
-      return '<div class="file' + active + '" data-file="' + esc(name) + '"><span class="file-icon">' + iconFor(name) + '</span><span class="file-name">' + esc(name) + '</span>' + dirty + '</div>';
+      return '<div class="row file' + active + '" data-file="' + esc(name) + '"><span class="fi ts">' + iconFor(name) + '</span><span class="nm">' + esc(name) + '</span>' + dirty + '</div>';
     }).join('');
     $$('#tree [data-file]').forEach(function (el) { el.addEventListener('click', function () { openFile(el.dataset.file); }); });
   }
@@ -155,18 +159,19 @@
     if (ta && document.activeElement !== ta) ta.value = body;
     if (code) {
       code.innerHTML = body.split('\n').map(function (line, i) {
-        return '<div class="code-line"><span class="ln">' + (i + 1) + '</span><span class="src">' + highlight(line) + '</span></div>';
+        return '<div class="ln-row"><span class="ln">' + (i + 1) + '</span><span class="lc">' + highlight(line) + '</span></div>';
       }).join('');
     }
     const path = byId('bc-path'); if (path) path.textContent = state.activeFile || 'No file open';
     const dirty = byId('ed-dirty'); if (dirty) dirty.style.display = state.dirty.has(state.activeFile) ? '' : 'none';
     if (ta) ta.scrollTop = ta.scrollTop;
   }
+  /* Token classes match app.css: .k keyword, .s string, .c comment. */
   function highlight(line) {
     let s = esc(line);
-    s = s.replace(/(\/\/.*)$/g, '<span class="cm">$1</span>');
-    s = s.replace(/(['"`])((?:\\.|(?!\1).)*)\1/g, '<span class="str">$1$2$1</span>');
-    s = s.replace(/\b(const|let|var|function|return|export|import|from|async|await|class|new)\b/g, '<span class="kw">$1</span>');
+    s = s.replace(/(\/\/.*)$/g, '<span class="c">$1</span>');
+    s = s.replace(/(['"`])((?:\\.|(?!\1).)*)\1/g, '<span class="s">$1$2$1</span>');
+    s = s.replace(/\b(const|let|var|function|return|export|import|from|async|await|class|new)\b/g, '<span class="k">$1</span>');
     return s || '&nbsp;';
   }
   function markDirty() {
