@@ -364,7 +364,31 @@
     document.addEventListener('keydown', function (e) { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveActive(); } if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); aiEdit(); } });
   }
 
-  function boot() { loadState(); wire(); renderAll(); setView('editor'); setPane('files'); appendTerminal('recode workspace ready'); if (root.rmLoad) root.rmLoad(); if (root.rmWire) root.rmWire(); if (root.mnLoad && root.renderMnPane) root.renderMnPane(); if (root.lbBoot) root.lbBoot(); }
+  /* live-browser.js exposes its parts (lbLoad, wireBrowser, lbHealth, ...) but
+     no single entry point, so the shell boots it here. Without this the
+     browser pane opens with unwired controls and a chip stuck on "checking". */
+  function bootLiveBrowser() {
+    if (typeof root.lbLoad !== 'function' || typeof root.wireBrowser !== 'function') return;
+    root.lbLoad();
+    root.wireBrowser();
+    if (typeof root.lbHealth === 'function') {
+      var configured = typeof root.lbConfigured === 'function' && root.lbConfigured();
+      var probe = root.lbHealth(true);
+      if (configured && probe && probe.then) {
+        probe.then(function () {
+          if (root.lbRefreshSessions) root.lbRefreshSessions();
+          if (root.lbLoadTraces) root.lbLoadTraces();
+        });
+      }
+    }
+    if (root.renderBrTabs) root.renderBrTabs();
+    if (root.renderBrLog) root.renderBrLog();
+    if (root.renderBrSessions) root.renderBrSessions();
+    if (root.renderBrRec) root.renderBrRec();
+    if (root.lbSetMode && root.LB) root.lbSetMode(root.LB.mode);
+  }
+
+  function boot() { loadState(); wire(); renderAll(); setView('editor'); setPane('files'); appendTerminal('recode workspace ready'); if (root.rmLoad) root.rmLoad(); if (root.rmWire) root.rmWire(); if (root.mnLoad && root.renderMnPane) root.renderMnPane(); if (root.lbBoot) root.lbBoot(); else bootLiveBrowser(); }
   root.setView = setView; root.setPane = setPane; root.renderTree = renderTree; root.openFile = openFile; root.saveActive = saveActive; root.sendAi = sendAi; root.providerChat = providerChat; root.saveRmConfig = root.rmSave || function () {};
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })(window);
