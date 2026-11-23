@@ -20,4 +20,17 @@ describe("editor WebView bridge", () => {
     expect(parseEditorBridgeMessage(JSON.stringify({ type: "change", value: "☃".repeat(Math.ceil(MAX_EDITOR_CONTENT_BYTES / 2)) }))).toBeNull();
     expect(parseEditorBridgeMessage(JSON.stringify({ type: "ready", revision: -1 }))).toBeNull();
   });
+
+  it("round-trips revisions and bounded selections", () => {
+    const payload = encodeEditorSetMessage("const value = 1;", 4, { from: 2, to: 8 });
+    expect(JSON.parse(payload)).toEqual({ type: "set", value: "const value = 1;", revision: 4, selection: { from: 2, to: 8 } });
+    expect(parseEditorBridgeMessage(JSON.stringify({ type: "change", value: "next", revision: 4, selection: { from: 1, to: 3 } }))).toEqual({ type: "change", value: "next", revision: 4, selection: { from: 1, to: 3 } });
+    expect(parseEditorBridgeMessage(JSON.stringify({ type: "change", value: "next", revision: -1 }))).toBeNull();
+    expect(parseEditorBridgeMessage(JSON.stringify({ type: "change", value: "next", selection: { from: 3, to: 1 } }))).toBeNull();
+  });
+
+  it("accepts visible bridge failure codes", () => {
+    expect(parseEditorBridgeMessage(JSON.stringify({ type: "error", code: "bridge_not_ready", revision: 2 }))).toEqual({ type: "error", code: "bridge_not_ready", revision: 2 });
+    expect(parseEditorBridgeMessage(JSON.stringify({ type: "error", code: "injection_failed" }))).toEqual({ type: "error", code: "injection_failed", revision: 0 });
+  });
 });

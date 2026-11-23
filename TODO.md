@@ -49,3 +49,13 @@ Physical iPhone 13 and physical Android validation remain unperformed. The simul
 - [x] **Command palette:** A full-screen searchable palette exposes the shell actions through touch-friendly rows and a keyboard-friendly search field, without inventing unsupported runtime capabilities.
 - [x] **Capability boundaries:** Browser-safe editing/persistence remains usable on web, while native-only execution, cancellation, loopback preview, and embedded preview are labeled as development-client/native capabilities.
 - [x] **Existing behavior preserved:** Current workspace save/retry behavior, project/file models, device execution output, cancellation, and local preview callbacks remain connected to the redesigned shell.
+
+
+# RC-M1.1 Mobile Editing Foundation Outcomes
+
+- [ ] **Truthful save lifecycle:** The shell shows `Editing`, `Saving`, `Saved locally`, and `Save failed` states; a newer edit cannot be cleared by an older save completion or failure; Retry operates on the latest failed snapshot.
+- [ ] **Editor bridge hardening:** Native editor updates remain byte-bounded, carry revisions, suppress duplicate echo changes, preserve or clamp selection during parent-driven replacement, and expose readiness/injection errors through visible editor status.
+- [ ] **Mobile file operations:** Users can rename and delete files from the explorer and command palette; names are validated; duplicate names are rejected; deleting the last file is blocked; active-file state is repaired deterministically.
+- [ ] **Workspace recovery:** Reload restores the latest valid locally saved project, file, active project, and active file; failed saves retain recoverable in-memory edits without introducing cloud sync.
+- [ ] **Mobile editing actions:** The editor exposes Go to line, Select all, Duplicate line, and Toggle output through a touch-friendly context surface with web/native availability labels.
+- [ ] **Focused regression coverage:** Workspace mutations, save lifecycle races, editor bridge revisions/limits, restart restoration, and command availability are covered by focused tests; existing checks remain green.
