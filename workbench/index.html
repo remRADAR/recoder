@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>&lt;/recode&gt; — workbench</title>
+<link rel="stylesheet" href="app.css?v=9">
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ TITLE BAR ============ -->
+  <header class="titlebar">
+    <div class="brand">
+      <div class="mark"></div>
+      <div class="wordmark rw" title="</recode>"><span class="ang">&lt;</span><span class="sl">/</span><span class="nm">recode</span><span class="ang">&gt;</span><span class="sub">workbench</span></div>
+    </div>
+
+    <button class="cmdbar" id="cmdbar" title="Command palette">
+      <span class="mag"></span>
+      <span class="lbl" id="cmdbar-lbl">&lt;/recode&gt; — search files, commands, extensions</span>
+      <kbd>⌘K</kbd>
+    </button>
+
+    <div class="tb-right">
+      <div class="pill hide-sm" id="pill-host" title="Extension host runtime">
+        <span class="dot"></span><span id="host-txt">host: jsc · 12 ext</span>
+      </div>
+      <div class="pill hide-sm" id="pill-daemon" title="recoderd daemon">
+        <span class="dot"></span><span>recoderd :51823</span>
+      </div>
+      <button class="iconbtn" id="btn-layout" title="Toggle sidebar">▤</button>
+      <div class="avatar">RR</div>
+    </div>
+  </header>
+
+  <!-- ============ WORK AREA ============ -->
+  <div class="work">
+
+    <!-- activity rail -->
+    <nav class="rail" id="rail">
+      <button data-view="files" class="on" title="Explorer">
+        <svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      </button>
+      <button data-view="search" title="Search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>
+      </button>
+      <button data-view="extensions" title="Extensions">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/></svg>
+        <span class="badge" id="ext-badge">3</span>
+      </button>
+      <button data-view="marketplace" title="Marketplace">
+        <svg viewBox="0 0 24 24"><path d="M4 8h16l-1.2 11a2 2 0 0 1-2 1.8H7.2a2 2 0 0 1-2-1.8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
+      </button>
+      <button data-view="git" title="Source control">
+        <svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.4"/><circle cx="6" cy="18" r="2.4"/><circle cx="18" cy="12" r="2.4"/><path d="M6 8.4v7.2M8.4 6h4.2a3 3 0 0 1 3 3v.6"/></svg>
+      </button>
+      <button data-view="ftp" title="FTP server">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>
+      </button>
+      <button data-view="github" title="GitHub">
+        <svg viewBox="0 0 24 24"><path d="M9 19c-4 1.2-4-2.2-5.5-2.7M15 21v-3.4a2.9 2.9 0 0 0-.8-2.3c2.7-.3 5.5-1.3 5.5-6a4.7 4.7 0 0 0-1.3-3.2 4.3 4.3 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12 12 0 0 0-6.2 0C6.2 2.6 5.1 2.9 5.1 2.9a4.3 4.3 0 0 0-.1 3.2A4.7 4.7 0 0 0 3.7 9.3c0 4.7 2.8 5.7 5.5 6a2.9 2.9 0 0 0-.8 2.3V21"/></svg>
+        <span class="badge" id="gh-badge" style="display:none">0</span>
+      </button>
+      <button data-view="ai" title="AI tools &amp; providers">
+        <svg viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/><path d="M18 15.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></svg>
+        <span class="badge" id="ai-badge" style="display:none">0</span>
+      </button>
+      <button data-view="browser" title="Built-in browser">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+      </button>
+      <button data-view="radarmatrix" title="RADARMatrix — the project's own source AI">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.2"/><path d="M12 4.5a7.5 7.5 0 0 1 7.5 7.5M12 8a4 4 0 0 1 4 4"/><path d="M12 19.5A7.5 7.5 0 0 1 4.5 12M12 16a4 4 0 0 1-4-4"/></svg>
+        <span class="badge" id="rm-badge" style="display:none">0</span>
+      </button>
+      <button data-view="manus" title="Manus — hand off to the Manus agent">
+        <svg viewBox="0 0 24 24"><path d="M4 17V9.5a2.5 2.5 0 0 1 5 0V17"/><path d="M9 12.5a2.5 2.5 0 0 1 5 0V17"/><path d="M14 13.5a2.5 2.5 0 0 1 5 0V17"/><path d="M4 20h16"/></svg>
+        <span class="badge" id="mn-badge" style="display:none">0</span>
+      </button>
+      <div class="spacer"></div>
+      <button data-view="settings" title="Settings">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/></svg>
+      </button>
+      <button id="btn-compact" title="Compact mode — denser chrome, smaller type">
+        <svg viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></svg>
+      </button>
+    </nav>
+
+    <!-- sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-head">
+        <span class="sb-title" id="sb-title">Explorer</span>
+        <div class="sb-actions" id="sb-actions">
+          <button title="New file">＋</button>
+          <button title="Refresh">⟳</button>
+          <button title="Collapse">⌄</button>
+        </div>
+      </div>
+      <div class="sb-body">
+
+        <!-- FILES -->
+        <div class="sb-pane on" data-pane="files">
+          <div class="tree" id="tree"></div>
+        </div>
+
+        <!-- SEARCH -->
+        <div class="sb-pane" data-pane="search">
+          <div class="pane-pad">
+            <input class="field" id="search-input" placeholder="Search workspace…" autocomplete="off">
+            <div class="hint" id="search-hint">Type to search across <b>1,284</b> files in <b>recoder</b>. Regex and case toggles are on the right of the field in the full app.</div>
+          </div>
+          <div id="search-results"></div>
+        </div>
+
+        <!-- EXTENSIONS -->
+        <div class="sb-pane" data-pane="extensions">
+          <div class="pane-pad" style="padding-bottom:4px">
+            <input class="field" id="ext-filter" placeholder="Filter installed…" autocomplete="off">
+          </div>
+          <div id="ext-list"></div>
+        </div>
+
+        <!-- GIT -->
+        <div class="sb-pane" data-pane="git">
+          <div class="pane-pad">
+            <div class="hint" style="margin-top:0">Branch <b style="color:var(--lime)">main</b> · isomorphic-git on device</div>
+          </div>
+          <div id="git-list"></div>
+        </div>
+
+        <!-- GITHUB -->
+        <div class="sb-pane" data-pane="github">
+          <div id="gh-pane"></div>
+        </div>
+
+        <!-- AI TOOLS -->
+        <div class="sb-pane" data-pane="ai">
+          <div id="ai-pane"></div>
+        </div>
+
+        <!-- RADARMATRIX -->
+        <div class="sb-pane" data-pane="radarmatrix">
+          <div id="rm-pane"></div>
+        </div>
+
+        <!-- MANUS -->
+        <div class="sb-pane" data-pane="manus">
+          <div id="mn-pane"></div>
+        </div>
+
+        <!-- FTP -->
+        <div class="sb-pane" data-pane="ftp">
+          <div class="pane-pad">
+            <div class="hint" style="margin-top:0">FTPS server, foreground-scoped. Loopback by default; LAN requires an explicit opt-in and a path jail.</div>
+          </div>
+          <div id="ftp-list"></div>
+        </div>
+
+        <!-- SETTINGS -->
+        <div class="sb-pane" data-pane="settings">
+          <div class="pane-pad">
+            <div class="hint" style="margin-top:0">Workbench settings are stored per workspace in the on-device SQLite store.</div>
+          </div>
+          <div id="settings-list"></div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- main -->
+    <section class="main">
+      <div class="editor">
+        <div class="tabs" id="tabs"></div>
+        <div class="dbg-bar" id="dbg-bar">
+          <button id="dbg-continue" title="Continue (F5)">▶</button>
+          <button id="dbg-pause" title="Pause (F6)">‖</button>
+          <button id="dbg-stepover" title="Step over (F10)">↷</button>
+          <button id="dbg-stepin" title="Step into (F11)">↓</button>
+          <button id="dbg-stepout" title="Step out (⇧F11)">↑</button>
+          <div class="sep"></div>
+          <button id="dbg-restart" title="Restart">↻</button>
+          <button id="dbg-stop" title="Stop (⇧F5)">■</button>
+          <span class="st idle" id="dbg-state">not started</span>
+          <div class="spacer"></div>
+          <span class="rt" id="dbg-rt">node · jsc</span>
+        </div>
+        <div class="breadcrumb" id="breadcrumb">
+          <span class="bc-path" id="bc-path"></span>
+          <span class="ed-bar" id="ed-bar">
+            <span class="dirty" id="ed-dirty" style="display:none">&#9679; unsaved</span>
+            <button id="ed-edit" title="Edit this file">Edit</button>
+            <button id="ed-save" title="Save (&#8984;S)">Save</button>
+            <button id="ed-revert" title="Discard local changes">Revert</button>
+            <button id="ed-ai" title="AI inline edit of the selected lines (&#8984;K)">AI Edit</button>
+          </span>
+        </div>
+        <div class="code-wrap" id="code-wrap">
+          <div class="code" id="code"></div>
+          <textarea id="editor-ta" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off"></textarea>
+          <div class="minimap" id="minimap"><div class="mm-view"></div></div>
+          <div class="inline-bar" id="inline-bar">
+            <div class="ib-head">
+              <span class="ib-tag" id="ib-range">Ln 1</span>
+              <span class="ib-hint">AI inline edit &mdash; rewrites only the selected lines</span>
+              <button class="ib-x" id="ib-close" title="Cancel">&#10005;</button>
+            </div>
+            <div class="ib-row">
+              <input id="ib-input" placeholder="e.g. add error handling, make it async, rename to camelCase&hellip;" autocomplete="off" spellcheck="false">
+              <button class="ib-run" id="ib-run">Rewrite</button>
+            </div>
+            <div class="ib-msg" id="ib-msg"></div>
+          </div>
+          <div class="diff-bar" id="diff-bar">
+            <span class="db-txt" id="db-txt"></span>
+            <button id="db-reject">Reject</button>
+            <button id="db-accept" class="primary">Accept</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- bottom panel -->
+      <div class="panel" id="panel">
+        <div class="panel-grab" id="panel-grab"></div>
+        <div class="panel-head">
+          <button class="ptab on" data-ptab="terminal">Terminal <span class="cnt" id="term-cnt">1</span></button>
+          <button class="ptab" data-ptab="problems">Problems <span class="cnt" id="prob-cnt">2</span></button>
+          <button class="ptab" data-ptab="debug">Debug <span class="cnt" id="dbg-cnt">0</span></button>
+          <button class="ptab" data-ptab="ports">Ports <span class="cnt" id="port-cnt">2</span></button>
+          <button class="ptab" data-ptab="ai">AI <span class="cnt" id="ai-cnt">0</span></button>
+          <button class="ptab" data-ptab="output">Output</button>
+          <div class="spacer"></div>
+          <button class="iconbtn" id="panel-toggle" title="Toggle panel">⌄</button>
+        </div>
+        <div class="panel-body on" data-pbody="terminal">
+          <div class="term" id="term"></div>
+        </div>
+        <div class="panel-body" data-pbody="problems">
+          <div id="problems"></div>
+        </div>
+        <div class="panel-body" data-pbody="debug">
+          <div class="dbg" id="dbg"></div>
+        </div>
+        <div class="panel-body" data-pbody="ports">
+          <div id="ports"></div>
+        </div>
+        <div class="panel-body" data-pbody="ai">
+          <div class="aichat" id="aichat">
+            <div class="ai-msgs" id="ai-msgs"></div>
+            <div class="ai-compose">
+              <textarea id="ai-input" rows="1" placeholder="Ask the connected model about this file, or type / to run an action&#8230;"></textarea>
+              <button class="send" id="ai-send">Send</button>
+            </div>
+          </div>
+        </div>
+        <div class="panel-body" data-pbody="output">
+          <div class="term" id="output"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- built-in browser surface — a real live Playwright session -->
+    <div class="browser" id="browser">
+      <div class="br-top">
+        <div class="br-nav">
+          <button id="br-back" title="Back">&#8592;</button>
+          <button id="br-fwd" title="Forward">&#8594;</button>
+          <button id="br-reload" title="Reload">&#8635;</button>
+        </div>
+        <div class="br-url">
+          <span class="lock" id="br-lock">&#9679;</span>
+          <input id="br-url" spellcheck="false" autocomplete="off" placeholder="Enter an address and press Enter to drive it live">
+        </div>
+        <button class="br-go" id="br-go">Go</button>
+        <button class="br-rec" id="br-rec" title="Record a Playwright trace of this session"><span class="d"></span>Record</button>
+        <span class="br-mode" id="br-mode"><span class="d"></span><span id="br-mode-txt">idle</span></span>
+        <button class="br-conn off" id="br-conn" title="Live browser server"><span class="d"></span>checking</button>
+        <button class="iconbtn" id="br-side-toggle" title="Toggle the action log">&#9776;</button>
+        <button class="iconbtn" id="br-close" title="Close the browser">&#10005;</button>
+      </div>
+      <div class="br-tabs" id="br-tabs"></div>
+      <div class="br-main">
+        <div class="br-stage" id="br-stage">
+          <img class="br-shot hidden" id="br-shot" alt="Live page">
+          <div class="br-empty" id="br-empty">
+            <div>
+              <b>No live session.</b><br>
+              Type an address above and press Enter &mdash; the app opens a real<br>
+              Playwright/Chromium session on its own server and drives it here.
+            </div>
+          </div>
+          <div class="br-cursor" id="br-cursor"><span class="ring"></span></div>
+        </div>
+        <aside class="br-side" id="br-side">
+          <div class="br-side-head">
+            <span class="t">Action log</span>
+            <span class="c" id="br-count">0 / 0</span>
+          </div>
+          <div class="br-log" id="br-log"></div>
+          <div class="br-ask">
+            <div class="lbl">Ask the agent</div>
+            <div class="row">
+              <input id="br-ask" placeholder="e.g. open example.com and read the heading" autocomplete="off" spellcheck="false">
+              <button id="br-ask-go">Run</button>
+            </div>
+            <div class="hint" id="br-ask-hint">Runs against the live page. Try: open &lt;url&gt;, click &lt;selector&gt;, type &lt;text&gt; into &lt;selector&gt;, read &lt;selector&gt;, scroll.</div>
+          </div>
+          <div class="br-sessions" id="br-sessions"></div>
+          <div class="br-recwrap">
+            <div class="br-side-head"><span class="t">Recorded traces</span><span class="c" id="br-reccount"></span></div>
+            <div class="br-traces" id="br-traces"></div>
+          </div>
+          <div class="br-foot">
+            <div class="br-prog"><i id="br-prog"></i></div>
+            <div class="row">
+              <button id="br-takeover" class="warn">Take over</button>
+              <button id="br-handback">Hand back</button>
+            </div>
+            <div class="row">
+              <button id="br-close-session">Close session</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- marketplace overlay -->
+    <div class="mkt" id="mkt">
+      <div class="mkt-head">
+        <div class="mkt-top">
+          <div>
+            <h2 class="mkt-title">Marketplace <span class="mkt-live busy" id="mkt-live"><span class="d"></span><span id="mkt-live-txt">connecting</span></span></h2>
+            <p class="mkt-sub">Open VSX registry · live · verified on device before install</p>
+          </div>
+          <div class="mkt-search">
+            <span class="mag"></span>
+            <input id="mkt-input" placeholder="Search extensions…" autocomplete="off">
+          </div>
+          <button class="btn ghost" id="mkt-close" title="Close">✕</button>
+        </div>
+        <div class="chips" id="mkt-chips"></div>
+      </div>
+      <div class="mkt-body">
+        <div class="mkt-meta">
+          <span id="mkt-count">—</span>
+          <span class="mkt-sort">sort:
+            <select id="mkt-sort">
+              <option value="relevance">relevance</option>
+              <option value="downloadCount">installs</option>
+              <option value="averageRating">rating</option>
+              <option value="timestamp">recent</option>
+            </select>
+          </span>
+        </div>
+        <div class="grid" id="mkt-grid"></div>
+      </div>
+    </div>
+
+    <!-- extension detail drawer -->
+    <div class="drawer" id="drawer"></div>
+  </div>
+
+  <!-- ============ BOTTOM NAV (phone-first) ============ -->
+  <nav class="bnav" id="bnav">
+    <button data-bnav="files" class="on" title="Explorer">
+      <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      <span>Files</span>
+    </button>
+    <button data-bnav="search" title="Search">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>
+      <span>Search</span>
+    </button>
+    <button data-bnav="editor" title="Editor">
+      <svg viewBox="0 0 24 24"><path d="M8 6l-5 6 5 6"/><path d="M16 6l5 6-5 6"/></svg>
+      <span>Editor</span>
+    </button>
+    <button data-bnav="debug" title="Debug">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="4"/><path d="M12 9V5M8 11L5 9M16 11l3-2M8 15l-3 2M16 15l3 2M9 19l-1 2M15 19l1 2"/></svg>
+      <span>Debug</span>
+      <span class="bdg amber" id="bnav-dbg" style="display:none">0</span>
+    </button>
+    <button data-bnav="terminal" title="Terminal">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg>
+      <span>Term</span>
+    </button>
+    <button data-bnav="marketplace" title="Marketplace">
+      <svg viewBox="0 0 24 24"><path d="M4 8h16l-1.2 11a2 2 0 0 1-2 1.8H7.2a2 2 0 0 1-2-1.8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
+      <span>Store</span>
+      <span class="bdg" id="bnav-ext">3</span>
+    </button>
+    <button data-bnav="github" title="GitHub">
+      <svg viewBox="0 0 24 24"><path d="M9 19c-4 1.2-4-2.2-5.5-2.7M15 21v-3.4a2.9 2.9 0 0 0-.8-2.3c2.7-.3 5.5-1.3 5.5-6a4.7 4.7 0 0 0-1.3-3.2 4.3 4.3 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12 12 0 0 0-6.2 0C6.2 2.6 5.1 2.9 5.1 2.9a4.3 4.3 0 0 0-.1 3.2A4.7 4.7 0 0 0 3.7 9.3c0 4.7 2.8 5.7 5.5 6a2.9 2.9 0 0 0-.8 2.3V21"/></svg>
+      <span>GitHub</span>
+      <span class="bdg" id="bnav-gh" style="display:none">0</span>
+    </button>
+    <button data-bnav="ai" title="AI tools">
+      <svg viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/><path d="M18 15.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></svg>
+      <span>AI</span>
+      <span class="bdg" id="bnav-ai" style="display:none">0</span>
+    </button>
+    <button data-bnav="browser" title="Live browser">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+      <span>Browse</span>
+    </button>
+    <button data-bnav="radarmatrix" title="RADARMatrix">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.2"/><path d="M12 4.5a7.5 7.5 0 0 1 7.5 7.5M12 8a4 4 0 0 1 4 4"/><path d="M12 19.5A7.5 7.5 0 0 1 4.5 12M12 16a4 4 0 0 1-4-4"/></svg>
+      <span>Matrix</span>
+    </button>
+  </nav>
+
+  <!-- ============ STATUS BAR ============ -->
+  <footer class="status">
+    <div class="seg dark" id="st-remote">
+      <svg viewBox="0 0 24 24"><path d="M5 12.5a7 7 0 0 1 14 0"/><path d="M8.5 15a3.5 3.5 0 0 1 7 0"/><circle cx="12" cy="18" r="1"/></svg>
+      on-device
+    </div>
+    <div class="seg" id="st-branch">⎇ main</div>
+    <div class="seg" id="st-sync">↑0 ↓0</div>
+    <div class="seg opt" id="st-gh" title="GitHub connection">
+      <svg viewBox="0 0 24 24"><path d="M9 19c-4 1.2-4-2.2-5.5-2.7M15 21v-3.4a2.9 2.9 0 0 0-.8-2.3c2.7-.3 5.5-1.3 5.5-6a4.7 4.7 0 0 0-1.3-3.2 4.3 4.3 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12 12 0 0 0-6.2 0C6.2 2.6 5.1 2.9 5.1 2.9a4.3 4.3 0 0 0-.1 3.2A4.7 4.7 0 0 0 3.7 9.3c0 4.7 2.8 5.7 5.5 6a2.9 2.9 0 0 0-.8 2.3V21"/></svg>
+      <span id="st-gh-txt">GitHub: signed out</span>
+    </div>
+    <div class="seg opt" id="st-ai" title="AI provider">
+      <span id="st-ai-txt">AI: no provider</span>
+    </div>
+    <div class="seg opt" id="st-problems">✕ 0  ⚠ 2</div>
+    <div class="spacer"></div>
+    <div class="seg opt" id="st-ftp">FTP off</div>
+    <div class="seg opt" id="st-host">JSC 12/12</div>
+    <div class="seg" id="st-ln">Ln 1, Col 1</div>
+    <div class="seg" id="st-lang">TypeScript</div>
+    <div class="seg" id="st-enc">UTF-8</div>
+    <div class="seg" id="st-eol">LF</div>
+  </footer>
+</div>
+
+<div class="overlay" id="overlay"></div>
+<div class="palette" id="palette">
+  <input id="palette-input" placeholder="Type a command or file name…" autocomplete="off">
+  <div class="list" id="palette-list"></div>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<!-- ============ GITHUB SIGN-IN ============ -->
+<div class="modal" id="m-signin">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <h3>Sign in to GitHub</h3>
+        <p>&lt;/recode&gt; talks to the GitHub REST API directly from this device. Your token is kept in this browser only.</p>
+      </div>
+      <button class="x" data-mclose="m-signin">✕</button>
+    </div>
+    <div class="modal-body">
+      <ol class="steps">
+        <li>Open <a href="https://github.com/settings/tokens/new?scopes=repo,read:user&amp;description=recode%20workbench" target="_blank" rel="noopener">github.com/settings/tokens/new</a></li>
+        <li>Select the <b>repo</b> scope (needed to clone, push and open pull requests)</li>
+        <li>Generate the token and paste it below</li>
+      </ol>
+      <div class="fld">
+        <label for="si-token">Personal access token</label>
+        <input id="si-token" type="password" placeholder="ghp_… or github_pat_…" autocomplete="off" spellcheck="false">
+        <div class="sub">Fine-grained tokens work too — grant <b>Contents: read &amp; write</b> and <b>Pull requests: read &amp; write</b> on the repos you want.</div>
+      </div>
+      <div class="fld">
+        <label for="si-host">GitHub host</label>
+        <input id="si-host" value="github.com" spellcheck="false">
+        <div class="sub">Change this for GitHub Enterprise Server.</div>
+      </div>
+      <div id="si-msg"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-mclose="m-signin">Cancel</button>
+      <button class="btn primary" id="si-go">Sign in</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CLONE REPOSITORY ============ -->
+<div class="modal" id="m-clone">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <h3>Clone a repository</h3>
+        <p>Pick one of your repositories, or paste any clone URL you can read.</p>
+      </div>
+      <button class="x" data-mclose="m-clone">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fld">
+        <label for="cl-url">Repository</label>
+        <input id="cl-url" placeholder="owner/repo or https://github.com/owner/repo.git" spellcheck="false">
+        <div class="sub">Shorthand <b>owner/repo</b> is resolved against your account.</div>
+      </div>
+      <div class="fld">
+        <label for="cl-branch">Branch</label>
+        <input id="cl-branch" placeholder="leave blank for the default branch" spellcheck="false">
+      </div>
+      <div class="fld">
+        <label>Your repositories</label>
+        <div class="gh-repolist" id="cl-list"><div class="gh-note">Sign in to list your repositories.</div></div>
+      </div>
+      <div id="cl-msg"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-mclose="m-clone">Cancel</button>
+      <button class="btn primary" id="cl-go">Clone</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ COMMIT &amp; PUSH ============ -->
+<div class="modal" id="m-commit">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <h3>Commit &amp; push</h3>
+        <p id="cm-sub">—</p>
+      </div>
+      <button class="x" data-mclose="m-commit">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fld">
+        <label for="cm-msg">Commit message</label>
+        <textarea id="cm-msg" placeholder="Describe the change…"></textarea>
+      </div>
+      <div class="fld">
+        <label for="cm-branch">Commit to branch</label>
+        <input id="cm-branch" spellcheck="false">
+        <div class="sub">Committing to a branch other than the default creates it if it does not exist.</div>
+      </div>
+      <div class="fld">
+        <label>Files in this commit</label>
+        <div id="cm-files"></div>
+      </div>
+      <div id="cm-msgbox"></div>
+      <div id="cm-rmnote"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-mclose="m-commit">Cancel</button>
+      <button class="btn primary" id="cm-go">Commit &amp; push</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ OPEN PULL REQUEST ============ -->
+<div class="modal" id="m-pr">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <h3>Open a pull request</h3>
+        <p id="pr-sub">—</p>
+      </div>
+      <button class="x" data-mclose="m-pr">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fld">
+        <label for="pr-title">Title</label>
+        <input id="pr-title" placeholder="Short, imperative summary">
+      </div>
+      <div class="fld">
+        <label for="pr-body">Description</label>
+        <textarea id="pr-body" placeholder="What changed and why…"></textarea>
+      </div>
+      <div class="fld">
+        <label for="pr-head">Head branch</label>
+        <input id="pr-head" spellcheck="false">
+      </div>
+      <div class="fld">
+        <label for="pr-base">Base branch</label>
+        <input id="pr-base" spellcheck="false">
+      </div>
+      <div class="fld">
+        <label>Options</label>
+        <label class="chk"><input type="checkbox" id="pr-draft"> Open as draft</label>
+      </div>
+      <div id="pr-msg"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-mclose="m-pr">Cancel</button>
+      <button class="btn primary" id="pr-go">Create pull request</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ AI PROVIDER CONFIG ============ -->
+<div class="modal" id="m-prov">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <h3 id="pv-title">Connect a provider</h3>
+        <p id="pv-sub">Keys are stored in this browser only and sent straight to the provider.</p>
+      </div>
+      <button class="x" data-mclose="m-prov">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fld">
+        <label for="pv-key">API key</label>
+        <input id="pv-key" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false">
+        <div class="sub" id="pv-hint"></div>
+      </div>
+      <div class="fld">
+        <label for="pv-model">Model</label>
+        <select id="pv-model"></select>
+        <div id="pv-cat"></div>
+      </div>
+      <div class="fld">
+        <label for="pv-base">Base URL</label>
+        <input id="pv-base" spellcheck="false">
+        <div class="sub">Point this at a proxy, a local server (Ollama, LM Studio, vLLM) or an Azure deployment.</div>
+      </div>
+      <div id="pv-msg"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="pv-test">Test</button>
+      <button class="btn primary" id="pv-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ LIVE BROWSER SERVER ============ -->
+<div class="modal" id="m-live">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <h3>Live browser server</h3>
+        <p>The app drives a real Playwright/Chromium session on this server and streams it into the browser surface.</p>
+      </div>
+      <button class="x" data-mclose="m-live">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fld">
+        <label for="ls-url">Server URL</label>
+        <input id="ls-url" spellcheck="false" placeholder="https://your-live-browser-host">
+        <div class="sub">Leave empty to use this page's own origin. The server is <code>server/live_browser.py</code> — run it with <code>python3 live_browser.py</code> and expose it with a tunnel if the app is hosted elsewhere.</div>
+      </div>
+      <div class="fld">
+        <label for="ls-token">Access token <span style="color:var(--dim2);font-weight:400">(optional)</span></label>
+        <input id="ls-token" type="password" spellcheck="false" placeholder="only if the server was started with LB_TOKEN">
+        <div class="sub">Sent as <code>Authorization: Bearer</code> on every call, and as <code>?token=</code> on the WebSocket upgrade. Stored in this browser only.</div>
+      </div>
+      <div id="ls-status"></div>
+      <div class="fld" style="margin-top:12px">
+        <label>Endpoints the server exposes</label>
+        <div class="gh-note" style="margin-top:0">
+          <code>GET /health</code> · <code>POST /api/sessions</code> · <code>POST /api/sessions/{id}/goto</code> ·
+          <code>POST /api/sessions/{id}/act</code> · <code>POST /api/sessions/{id}/back|forward|reload</code> ·
+          <code>POST /api/sessions/{id}/mode</code> · <code>WS /ws/{id}</code>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="ls-check">Check</button>
+      <button class="btn primary" id="ls-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ RADARMATRIX ============ -->
+<div class="modal" id="m-rm">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <h3>Connect RADARMatrix</h3>
+        <p>The project's own source AI — MCP gateway plus an OpenAI-compatible adapter.</p>
+      </div>
+      <button class="x" data-mclose="m-rm">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fld">
+        <label for="rm-base">Gateway base URL</label>
+        <input id="rm-base" spellcheck="false" placeholder="https://matrix.example.com">
+        <div class="sub">The MCP gateway root. The client calls <code>POST /mcp</code> and <code>POST /v1/chat/completions</code>.</div>
+      </div>
+      <div class="fld">
+        <label for="rm-token">Bearer token</label>
+        <input id="rm-token" type="password" spellcheck="false" placeholder="workspace-scoped credential">
+        <div class="sub">Stored in this browser only. Sent as <code>Authorization: Bearer</code> on every call.</div>
+      </div>
+      <div class="fld">
+        <label for="rm-ws">Workspace id</label>
+        <input id="rm-ws" spellcheck="false" placeholder="workspace">
+        <div class="sub">Sent as <code>x-radar-workspace</code> so the gateway enforces isolation server-side.</div>
+      </div>
+      <div class="fld">
+        <label for="rm-mode">Integration surface</label>
+        <select id="rm-mode">
+          <option value="mcp">MCP gateway (JSON-RPC 2.0)</option>
+          <option value="openai">OpenAI-compatible adapter</option>
+        </select>
+      </div>
+      <div id="rm-msg"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="rm-test2">Test gateway</button>
+      <button class="btn primary" id="rm-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MANUS ============ -->
+<div class="modal" id="m-manus">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <h3>Connect Manus</h3>
+        <p>Manus runs tasks asynchronously. The workbench reaches it through a small proxy, because the Manus API refuses browser calls from any origin but its own.</p>
+      </div>
+      <button class="x" data-mclose="m-manus">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fld">
+        <label for="mn-proxy">Manus proxy URL</label>
+        <input id="mn-proxy" spellcheck="false" placeholder="https://manus-proxy.example.com">
+        <div class="sub">Run <code>server/manus_proxy.py</code> and put its address here. The proxy holds the API key, so it never reaches this page.</div>
+      </div>
+      <div class="fld">
+        <label for="mn-token">Proxy access token <span style="color:var(--dim2);font-weight:400">(optional)</span></label>
+        <input id="mn-token" type="password" spellcheck="false" placeholder="MP_TOKEN, if the proxy sets one">
+        <div class="sub">Sent as <code>x-mp-token</code>. Leave empty if the proxy is open.</div>
+      </div>
+      <div class="fld">
+        <label for="mn-key">Manus API key <span style="color:var(--dim2);font-weight:400">(optional)</span></label>
+        <input id="mn-key" type="password" spellcheck="false" placeholder="only if the proxy has no MANUS_API_KEY">
+        <div class="sub">Create one at <a href="https://manus.im/app#settings/developers" target="_blank" rel="noopener">manus.im → Settings → Developers</a>. Kept in this browser only and forwarded per request.</div>
+      </div>
+      <div class="gh-note" style="margin-top:2px">
+        <b>Why a proxy:</b> <code>api.manus.ai</code> answers the CORS preflight with
+        <code>access-control-allow-origin</code> only for <code>manus.im</code>. Because the key must travel in
+        <code>x-manus-api-key</code>, every call is preflighted — so a page on any other origin is blocked before the request is sent.
+      </div>
+      <div id="mn-msg"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-mclose="m-manus">Cancel</button>
+      <button class="btn primary" id="mn-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="model-catalogue.js?v=9"></script>
+<script src="radarmatrix.js?v=9"></script>
+<script src="live-browser.js?v=9"></script>
+<script src="manus.js?v=9"></script>
+<script src="app.js?v=9"></script>
+</body>
+</html>
