@@ -275,7 +275,7 @@ kbd{font-family:var(--mono);font-size:10px;padding:1px 4px;border:1px solid var(
 
 /* ---------- marketplace ---------- */
 .mkt{position:absolute;top:0;right:0;bottom:0;left:48px;background:var(--ink);z-index:28;display:none;flex-direction:column;min-height:0}
-.mkt.on{display:flex}
+.mkt.on,.mkt.view-on{display:flex}
 .mkt-head{padding:18px 22px 0;flex:none;border-bottom:1px solid var(--line)}
 .mkt-top{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
 .mkt-title{font-size:19px;font-weight:650;letter-spacing:-.02em;margin:0}
@@ -759,7 +759,7 @@ kbd{font-family:var(--mono);font-size:10px;padding:1px 4px;border:1px solid var(
 
 /* ---------- built-in browser ---------- */
 .browser{position:absolute;inset:0 0 0 var(--rail-w);z-index:40;display:none;flex-direction:column;background:var(--ink);min-height:0}
-.browser.on{display:flex}
+.browser.on,.browser.view-on{display:flex}
 .br-top{flex:none;display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--panel2);border-bottom:1px solid var(--line2)}
 .br-nav{display:flex;gap:2px;flex:none}
 .br-nav button{width:24px;height:24px;display:grid;place-items:center;color:var(--dim2);border-radius:2px;font-size:12px}
