@@ -154,7 +154,7 @@ function renderRmPane() {
     '<div class="gh-row2" style="margin-top:8px">' +
     '<button class="gh-btn sm" id="rm-open">Configure</button>' +
     '<button class="gh-btn sm" id="rm-test">Test gateway</button>' +
-    '<button class="gh-btn sm" id="rm-use">' + (AI.provider === 'radarmatrix' ? 'Active AI source' : 'Use as AI source') + '</button>' +
+    '<button class="gh-btn sm" id="rm-use">' + (rmIsActiveSource() ? 'Active AI source' : 'Use as AI source') + '</button>' +
     '</div>' +
     (RM.health ? '<div class="gh-note" style="margin-top:8px">Gateway v' + esc(RM.health.version || '?') +
       ' \u00b7 ' + (RM.health.tools || 0) + ' tools \u00b7 ' + (RM.health.workspaces || 0) + ' workspace(s) \u00b7 ' +
@@ -221,8 +221,8 @@ function renderRmPane() {
   const t = $('#rm-test'); if (t) t.addEventListener('click', rmTest);
   const u = $('#rm-use'); if (u) u.addEventListener('click', () => {
     if (!rmReady()) { toast('Configure the gateway URL and token first'); openRmConfig(); return; }
-    AI.provider = 'radarmatrix'; AI.key = ''; AI.model = 'radar-matrix'; AI.base = RM.base;
-    aiSave(); renderAiPane(); renderAiStatus(); renderRmPane();
+    rmUseAsSource();
+    renderRmPane();
     toast('AI source set to <b>RADARMatrix</b> \u00b7 the project\u2019s own model');
   });
   const f = $('#rm-flush'); if (f) f.addEventListener('click', async () => {
@@ -231,6 +231,30 @@ function renderRmPane() {
     toast(r.flushed ? 'Wrote <b>' + r.flushed + '</b> decision record(s) to RADARMatrix' :
       'Nothing could be written \u2014 ' + r.remaining + ' still queued');
   });
+}
+
+/* ---------- AI-source bridge ----------
+   app.js owns the provider config (localStorage 'recode-ai-v1'). RADARMatrix
+   is offered as one more source, so these two helpers read and write that
+   same record instead of keeping a second, competing AI state. */
+function rmAiConfig() {
+  try { return JSON.parse(localStorage.getItem('recode-ai-v1') || 'null'); } catch (e) { return null; }
+}
+function rmIsActiveSource() {
+  const c = rmAiConfig();
+  return !!(c && c.provider === 'radarmatrix');
+}
+function rmUseAsSource() {
+  const cfg = {
+    provider: 'radarmatrix',
+    providerName: 'RADARMatrix',
+    model: 'radar-matrix',
+    key: '',
+    base: RM.base
+  };
+  try { localStorage.setItem('recode-ai-v1', JSON.stringify(cfg)); } catch (e) {}
+  if (typeof root !== 'undefined' && root.renderAiPane) root.renderAiPane();
+  if (typeof root !== 'undefined' && root.updateAiStatus) root.updateAiStatus();
 }
 
 function openRmConfig() {
@@ -340,4 +364,20 @@ async function rmFlushQueue() {
   rmQueueSave(keep);
   renderRmPane();
   return { flushed: flushed, remaining: keep.length };
+}
+
+/* Publish the module surface: app.js's boot() calls root.rmLoad() and
+   root.rmWire(), and top-level functions are not window properties. */
+if (typeof window !== 'undefined') {
+  window.rmLoad = rmLoad;
+  window.rmSave = rmSave;
+  window.rmWire = function () { rmLoad(); renderRmPane(); };
+  window.renderRmPane = renderRmPane;
+  window.rmTest = rmTest;
+  window.openRmConfig = openRmConfig;
+  window.saveRmConfig = saveRmConfig;
+  window.rmRecordCommit = rmRecordCommit;
+  window.rmFlushQueue = rmFlushQueue;
+  window.rmQueue = rmQueue;
+  window.RM = RM;
 }
