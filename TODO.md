@@ -59,3 +59,11 @@ Physical iPhone 13 and physical Android validation remain unperformed. The simul
 - [ ] **Workspace recovery:** Reload restores the latest valid locally saved project, file, active project, and active file; failed saves retain recoverable in-memory edits without introducing cloud sync.
 - [ ] **Mobile editing actions:** The editor exposes Go to line, Select all, Duplicate line, and Toggle output through a touch-friendly context surface with web/native availability labels.
 - [ ] **Focused regression coverage:** Workspace mutations, save lifecycle races, editor bridge revisions/limits, restart restoration, and command availability are covered by focused tests; existing checks remain green.
+
+
+# RC-M1.2 Browser Runtime Parity Outcomes
+
+- [ ] **Browser Run:** On web, Run executes the active JavaScript file in a disposable Worker with a five-second execution limit, 64-KB output limit, stdout/stderr capture, and visible completion or failure status.
+- [ ] **Browser Preview:** On web, Preview renders the active project in an isolated sandboxed iframe and injects the project `main.js` into `index.html` without requiring the native development client.
+- [ ] **Local fallback truthfulness:** When GitHub sync is unavailable or unauthenticated, the workspace remains usable through local persistence and the shell does not present the failed sync probe as a save failure.
+- [ ] **Native behavior preserved:** Native execution, cancellation, loopback preview, and governed agent approval flows remain routed through their existing native/runtime boundaries.

@@ -250,3 +250,19 @@ Add tests at the smallest owner:
 - A route/controller test where practical: command availability, file-action dispatch, and web/native labels.
 
 The acceptance bar is not merely that the app compiles: a test must demonstrate that a newer edit remains visible and recoverable after an older save fails, and that a file mutation cannot leave `activeFileId` pointing to a deleted file.
+
+
+# Proposed Next Slice — M1.2 Browser Runtime Parity
+
+## Outcome
+Make the web preview a useful mobile IDE surface instead of a shell-only fallback: JavaScript runs inside a bounded disposable browser Worker, the active project renders in an isolated in-browser preview, and unauthenticated/offline sessions remain usable through local persistence without misreporting a save failure. Native execution, loopback preview, GitHub sync, and governed agent approvals remain separate capability paths.
+
+## Implementation structure
+
+- `lib/runtime/web.ts`: browser Worker execution, bounded output/time limits, cancellation/session lookup, and blob-backed project preview.
+- `app/(tabs)/index.tsx`: select the web provider on web, expose Run/Preview, and render the browser preview in the terminal panel.
+- `lib/workspace/store.ts`: keep local storage as a deliberate fallback when the GitHub sync probe is unavailable.
+
+## Safety boundary
+
+Browser execution uses a disposable Worker with a five-second limit and 64-KB output cap. The project preview is rendered in a sandboxed iframe. This is not hostile-code OS isolation and does not add npm/package installation, public hosting, or cloud execution.

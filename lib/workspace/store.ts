@@ -20,8 +20,13 @@ export { MAX_IMPORT_BYTES } from "./persistence";
 type GithubSyncConfig = { enabled: boolean; repository: string | null; branch: string | null; path: string | null };
 type GithubWorkspaceResponse = { snapshot: WorkspaceSnapshot | null; sha: string | null };
 async function detectGithubSync(): Promise<boolean> {
-  const config = await apiCall<GithubSyncConfig>("/api/github-sync/config");
-  githubMode = config.enabled;
+  try {
+    const config = await apiCall<GithubSyncConfig>("/api/github-sync/config");
+    githubMode = config.enabled;
+  } catch {
+    // Preview and offline sessions should remain usable when auth or GitHub sync is unavailable.
+    githubMode = false;
+  }
   return githubMode;
 }
 

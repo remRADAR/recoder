@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native";
 import WebView from "react-native-webview";
 import { ScreenContainer } from "@/components/screen-container";
@@ -6,6 +6,7 @@ import { CodeMirrorEditor, type EditorAction } from "@/components/CodeMirrorEdit
 import { AgentSettingsModal } from "@/components/AgentSettingsModal";
 import { AgentTaskPanel } from "@/components/AgentTaskPanel";
 import { createNativeProvider, startPreview, stopPreview } from "@/lib/runtime/native";
+import { createWebProvider, startWebPreview, stopWebPreview } from "@/lib/runtime/web";
 import { isAllowedPreviewUrl } from "@/shared/runtime";
 import { createFile, createInitialSnapshot, createProject, deleteFile, exportTextFile, getWorkspacePersistenceMode, importTextFile, loadWorkspace, renameFile, saveWorkspace, updateFile } from "@/lib/workspace/store";
 import { createSaveCoordinator, type SaveCoordinatorState } from "@/lib/workspace/persistence";
@@ -13,7 +14,7 @@ import { isWideViewport, MOBILE_EDITOR_MIN_HEIGHT, MOBILE_TOUCH_TARGET } from "@
 import type { ExecutionSession, LocalServer, Project, SourceFile, WorkspaceSnapshot } from "@/shared/recoder";
 
 const colors = { canvas: "#080D18", panel: "#101827", panelRaised: "#172235", line: "#2A3A50", ink: "#F5F7FA", muted: "#9BAAC0", subtle: "#6D7D93", accent: "#38BDF8", accentSoft: "#10364B", good: "#86EFAC", warn: "#FCD34D" };
-const runtimeSelection = createNativeProvider();
+const runtimeSelection = Platform.OS === "web" ? { provider: createWebProvider(), available: true } : createNativeProvider();
 type ButtonProps = { label: string; onPress: () => void; active?: boolean; disabled?: boolean; compact?: boolean };
 type Command = { id: string; label: string; hint: string };
 
@@ -49,7 +50,7 @@ export default function HomeScreen() {
     return () => { mounted = false; };
   }, []);
   useEffect(() => { if (loaded) void saveCoordinator.current.save(workspace).catch(() => undefined); }, [workspace, loaded]);
-  useEffect(() => () => { if (server) void stopPreview(server.id); }, [server]);
+  useEffect(() => () => { if (server) { if (Platform.OS === "web") stopWebPreview(server); else void stopPreview(server.id); } }, [server]);
   useEffect(() => { const unsubscribe = runtimeSelection.provider.subscribe?.((event) => { setLiveEvents((current) => [...current, { id: event.id, at: event.at, stream: event.stream, text: event.text }]); setOutputTruncated((current) => current || Boolean(event.outputTruncated)); }); return () => unsubscribe?.(); }, []);
 
   const project = workspace.projects.find((item) => item.id === workspace.activeProjectId) ?? workspace.projects[0];
@@ -59,10 +60,10 @@ export default function HomeScreen() {
   const selectProject = (next: Project) => { update({ ...workspace, activeProjectId: next.id, activeFileId: next.files[0].id }); if (!isWide) setExplorerOpen(false); };
   const selectFile = (next: SourceFile) => { update({ ...workspace, activeFileId: next.id }); if (!isWide) setExplorerOpen(false); };
   const runFile = async (targetFile: SourceFile) => { setBusy(true); setOutputOpen(true); setOutputTruncated(false); setLiveEvents([]); try { const next = await runtimeSelection.provider.start({ project, file: targetFile }); setSession(next); return next.events.map((item) => `[${item.stream}] ${item.text}`).join("\n"); } finally { setBusy(false); } };
-  const run = async () => { try { await runFile(file); } catch (error) { Alert.alert("Device runtime unavailable", error instanceof Error ? error.message : "Build a development client with Expo prebuild."); } };
+  const run = async () => { try { await runFile(file); } catch (error) { Alert.alert(webOnly ? "Browser runtime unavailable" : "Device runtime unavailable", error instanceof Error ? error.message : "The file could not be run."); } };
   const cancel = async () => { if (!session) return; await runtimeSelection.provider.cancel(session.id).catch(() => undefined); setSession((current) => current ? { ...current, status: "cancelled", finishedAt: Date.now() } : current); };
-  const openPreview = async () => { try { setServer(await startPreview(project)); setOutputOpen(true); } catch (error) { Alert.alert("Local preview unavailable", error instanceof Error ? error.message : "Build a development client with Expo prebuild."); } };
-  const closePreview = async () => { if (!server) return; await stopPreview(server.id); setServer(null); };
+  const openPreview = async () => { try { setServer(webOnly ? startWebPreview(project) : await startPreview(project)); setOutputOpen(true); } catch (error) { Alert.alert("Local preview unavailable", error instanceof Error ? error.message : "The project preview could not be started."); } };
+  const closePreview = async () => { if (!server) return; if (webOnly) stopWebPreview(server); else await stopPreview(server.id); setServer(null); };
   const addProject = () => { update(createProject(workspace, newName)); setNewName(""); };
   const addFile = () => update(createFile(workspace, project.id, `file-${project.files.length + 1}.js`));
   const beginRename = (target: SourceFile = file) => { setRenameTarget(target); setRenameDraft(target.name); setPaletteOpen(false); };
@@ -130,7 +131,11 @@ function EditorActions({ webOnly, onSelectAll, onDuplicateLine, onGoToLine, onTo
   return <View accessibilityLabel="Editor actions" style={{ minHeight: 42, paddingHorizontal: 8, paddingVertical: 5, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.panel, borderBottomColor: colors.line, borderBottomWidth: 1 }}><Button label="Go to line" compact onPress={onGoToLine} /><Button label="Select all" compact onPress={onSelectAll} disabled={webOnly} /><Button label="Duplicate line" compact onPress={onDuplicateLine} disabled={webOnly} /><Button label={webOnly ? "Output" : "Output"} compact onPress={onToggleOutput} /><Text style={{ color: colors.subtle, fontSize: 10, marginLeft: "auto" }}>{webOnly ? "Web fallback" : "Native editor"}</Text></View>;
 }
 function OutputPanel({ session, output, outputTruncated, server, busy, webOnly, onRun, onCancel, onTogglePreview }: { session: ExecutionSession | null; output: string; outputTruncated: boolean; server: LocalServer | null; busy: boolean; webOnly: boolean; onRun: () => void; onCancel: () => void; onTogglePreview: () => void }) {
-  return <View style={{ maxHeight: 230, minHeight: 130, backgroundColor: "#0B1220", borderTopColor: colors.line, borderTopWidth: 1, padding: 12, gap: 8 }}><View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}><View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><Text style={{ color: colors.ink, fontWeight: "800" }}>Terminal</Text><Text style={{ color: session?.status === "completed" ? colors.good : colors.warn, fontSize: 11, fontWeight: "800" }}>{session?.status ?? "idle"}</Text></View><View style={{ flexDirection: "row", gap: 6 }}><Button label={busy ? "Running…" : "Run"} active onPress={onRun} disabled={busy} compact />{session?.status === "running" && <Button label="Stop" onPress={onCancel} compact />}<Button label={server ? "Stop preview" : "Preview"} onPress={onTogglePreview} compact /></View></View><Text style={{ color: colors.subtle, fontSize: 11 }}>{webOnly ? "Browser editing is active. Runtime and loopback preview require a native development client." : "Bounded device execution; not hostile-code OS isolation."}</Text>{outputTruncated && <Text style={{ color: colors.warn, fontSize: 11, fontWeight: "700" }}>Output truncated at 64 KB.</Text>}<ScrollView><Text selectable style={{ color: colors.ink, fontFamily: "monospace", fontSize: 11, lineHeight: 17 }}>{output}</Text></ScrollView>{server && Platform.OS !== "web" && <View style={{ height: 220, backgroundColor: colors.panel, borderRadius: 10, overflow: "hidden" }}><Text style={{ color: colors.muted, padding: 8, fontSize: 11 }}>Loopback preview: {server.url}</Text><WebView source={{ uri: server.url }} originWhitelist={["http://127.0.0.1/*"]} javaScriptEnabled onShouldStartLoadWithRequest={(request) => isAllowedPreviewUrl(request.url, server.url)} /></View>}</View>;
+  return <View style={{ maxHeight: 230, minHeight: 130, backgroundColor: "#0B1220", borderTopColor: colors.line, borderTopWidth: 1, padding: 12, gap: 8 }}><View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}><View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><Text style={{ color: colors.ink, fontWeight: "800" }}>Terminal</Text><Text style={{ color: session?.status === "completed" ? colors.good : colors.warn, fontSize: 11, fontWeight: "800" }}>{session?.status ?? "idle"}</Text></View><View style={{ flexDirection: "row", gap: 6 }}><Button label={busy ? "Running…" : "Run"} active onPress={onRun} disabled={busy} compact />{session?.status === "running" && <Button label="Stop" onPress={onCancel} compact />}<Button label={server ? "Stop preview" : "Preview"} onPress={onTogglePreview} compact /></View></View><Text style={{ color: colors.subtle, fontSize: 11 }}>{webOnly ? "Browser worker execution and an isolated in-browser project preview are active." : "Bounded device execution; not hostile-code OS isolation."}</Text>{outputTruncated && <Text style={{ color: colors.warn, fontSize: 11, fontWeight: "700" }}>Output truncated at 64 KB.</Text>}<ScrollView><Text selectable style={{ color: colors.ink, fontFamily: "monospace", fontSize: 11, lineHeight: 17 }}>{output}</Text></ScrollView>{server && Platform.OS === "web" && <WebPreview url={server.url} />}{server && Platform.OS !== "web" && <View style={{ height: 220, backgroundColor: colors.panel, borderRadius: 10, overflow: "hidden" }}><Text style={{ color: colors.muted, padding: 8, fontSize: 11 }}>Loopback preview: {server.url}</Text><WebView source={{ uri: server.url }} originWhitelist={["http://127.0.0.1/*"]} javaScriptEnabled onShouldStartLoadWithRequest={(request) => isAllowedPreviewUrl(request.url, server.url)} /></View>}</View>;
+}
+
+function WebPreview({ url }: { url: string }) {
+  return createElement("iframe", { title: "Recoder project preview", src: url, sandbox: "allow-scripts", style: { width: "100%", height: 220, border: 0, borderRadius: 10, backgroundColor: "#172235" } });
 }
 
 function BottomRail({ busy, session, server, onRun, onSave, onPreview, onMore, onToggleOutput }: { busy: boolean; session: ExecutionSession | null; server: LocalServer | null; onRun: () => void; onSave: () => void; onPreview: () => void; onMore: () => void; onToggleOutput: () => void }) {
