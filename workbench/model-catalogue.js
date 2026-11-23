@@ -80,3 +80,53 @@ function freeModels() {
 function codingModels() {
   return MODEL_CATALOGUE.filter((m) => m.tags.indexOf('coding') >= 0);
 }
+
+/* ============================================================
+   PROVIDER TABLE + COMPATIBILITY SURFACE
+   ============================================================
+   app.js drives the provider picker through an object API:
+     MODEL_CATALOGUE.providers        -> [{id,name,kind,base,models:[{id,name}]}]
+     MODEL_CATALOGUE.getProvider(id)  -> provider
+     MODEL_CATALOGUE.getModel(id)     -> model
+   The flat array above is the source of truth for the 48 models; this
+   block derives the object shape from it so both surfaces stay in sync
+   and no model list is duplicated.
+   ============================================================ */
+const PROVIDERS = [
+  { id: 'openrouter', name: 'OpenRouter', kind: 'openai', base: 'https://openrouter.ai/api/v1', keyHint: 'sk-or-\u2026' },
+  { id: 'groq', name: 'Groq', kind: 'openai', base: 'https://api.groq.com/openai/v1', keyHint: 'gsk_\u2026' },
+  { id: 'google', name: 'Google AI Studio', kind: 'openai', base: 'https://generativelanguage.googleapis.com/v1beta/openai', keyHint: 'AIza\u2026' },
+  { id: 'ollama', name: 'Ollama (local)', kind: 'openai', base: 'http://localhost:11434/v1', keyHint: 'not required' },
+  { id: 'anthropic', name: 'Anthropic', kind: 'anthropic', base: 'https://api.anthropic.com/v1', keyHint: 'sk-ant-\u2026' },
+  { id: 'openai', name: 'OpenAI', kind: 'openai', base: 'https://api.openai.com/v1', keyHint: 'sk-\u2026' }
+];
+
+function buildCatalogue() {
+  const providers = PROVIDERS.map((p) => ({
+    id: p.id, name: p.name, kind: p.kind, base: p.base, keyHint: p.keyHint,
+    models: MODEL_CATALOGUE.filter((m) => m.prov === p.id).map((m) => ({
+      id: m.id, name: m.name, ctx: m.ctx, free: m.free, open: m.open,
+      tags: m.tags, note: m.note, prov: m.prov
+    }))
+  })).filter((p) => p.models.length);
+
+  const byModel = {};
+  providers.forEach((p) => p.models.forEach((m) => { byModel[m.id] = m; }));
+
+  return {
+    providers: providers,
+    models: MODEL_CATALOGUE,
+    getProvider: function (id) { return providers.filter((p) => p.id === id)[0] || null; },
+    getModel: function (id) { return byModel[id] || null; },
+    free: freeModels,
+    coding: codingModels,
+    forProvider: catalogueFor
+  };
+}
+
+/* Expose on window: app.js reads root.MODEL_CATALOGUE, and a top-level
+   `const` is a lexical binding that is NOT a window property. */
+if (typeof window !== 'undefined') {
+  window.MODEL_CATALOGUE = buildCatalogue();
+  window.MODEL_CATALOGUE_RAW = MODEL_CATALOGUE;
+}
