@@ -6,10 +6,11 @@ import { encodeEditorSetMessage, MAX_EDITOR_CONTENT_BYTES, parseEditorBridgeMess
 
 export type EditorStatus = "loading" | "ready" | "replacing" | "error";
 export type EditorError = "content_too_large" | "bridge_not_ready" | "invalid_message" | "injection_failed";
-type Props = { value: string; onChange: (value: string) => void; onStatus?: (status: EditorStatus, error?: EditorError) => void };
+export type EditorAction = { kind: "select_all" | "duplicate_line" | "go_to_line"; line?: number; nonce: number };
+type Props = { value: string; onChange: (value: string) => void; onStatus?: (status: EditorStatus, error?: EditorError) => void; action?: EditorAction };
 const EDITOR_HTML = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/><style>html,body,#editor{margin:0;width:100%;height:100%;background:#282c34;color:#abb2bf} .cm-editor{height:100%;font-size:15px}.cm-scroller{overflow:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}</style></head><body><div id="editor"></div><script>${codeMirrorBundle}</script></body></html>`;
 
-export function CodeMirrorEditor({ value, onChange, onStatus }: Props) {
+export function CodeMirrorEditor({ value, onChange, onStatus, action }: Props) {
   const webViewRef = useRef<WebView>(null);
   const readyRef = useRef(false);
   const revisionRef = useRef(0);
@@ -39,6 +40,13 @@ export function CodeMirrorEditor({ value, onChange, onStatus }: Props) {
     // sendValue intentionally closes over the current controlled value and stable refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
+  useEffect(() => {
+    if (Platform.OS === "web" || !action || !readyRef.current) return;
+    const call = action.kind === "select_all" ? "window.recoderSelectAll()" : action.kind === "duplicate_line" ? "window.recoderDuplicateLine()" : `window.recoderGoToLine(${Math.max(1, action.line ?? 1)})`;
+    try { webViewRef.current?.injectJavaScript(`${call}; true;`); } catch { setTimeout(() => report("error", "injection_failed"), 0); }
+    // report intentionally remains local to this component's bridge callbacks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [action]);
   if (Platform.OS === "web") return <View style={{ flex: 1, minHeight: 320 }}><TextInput accessibilityLabel="Source editor" value={value} onChangeText={onChange} multiline autoCapitalize="none" autoCorrect={false} spellCheck={false} textAlignVertical="top" style={{ flex: 1, padding: 16, color: "#d7dae0", backgroundColor: "#282c34", fontFamily: "monospace", fontSize: 15 }} /></View>;
   const handleLoadEnd = () => { readyRef.current = false; report("loading"); try { webViewRef.current?.injectJavaScript(`window.recoderMount(); true;`); } catch { report("error", "injection_failed"); } };
   const handleMessage = (event: WebViewMessageEvent) => {

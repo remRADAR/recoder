@@ -8,7 +8,10 @@ declare global {
   interface Window {
     ReactNativeWebView?: { postMessage: (message: string) => void };
     recoderMount?: () => void;
-  recoderSetMessage?: (raw: string) => void;
+    recoderSetMessage?: (raw: string) => void;
+    recoderSelectAll?: () => void;
+    recoderDuplicateLine?: () => void;
+    recoderGoToLine?: (line: number) => void;
     recoderEditor?: EditorView;
   }
 }
@@ -57,4 +60,23 @@ window.recoderSetMessage = (raw: string) => {
   syncing = true;
   editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: message.value }, selection: { anchor: Math.min(Math.max(0, requestedFrom), message.value.length), head: Math.min(Math.max(0, requestedTo), message.value.length) } });
   syncing = false;
+};
+
+window.recoderSelectAll = () => {
+  const editor = window.recoderEditor;
+  if (editor) editor.dispatch({ selection: { anchor: 0, head: editor.state.doc.length } });
+};
+
+window.recoderDuplicateLine = () => {
+  const editor = window.recoderEditor;
+  if (!editor) return;
+  const line = editor.state.doc.lineAt(editor.state.selection.main.head);
+  editor.dispatch({ changes: { from: line.to, insert: `\n${line.text}` }, selection: { anchor: line.to + line.text.length + 1 } });
+};
+
+window.recoderGoToLine = (lineNumber: number) => {
+  const editor = window.recoderEditor;
+  if (!editor || !Number.isInteger(lineNumber)) return;
+  const line = editor.state.doc.line(Math.min(Math.max(1, lineNumber), editor.state.doc.lines));
+  editor.dispatch({ selection: { anchor: line.from }, scrollIntoView: true });
 };
