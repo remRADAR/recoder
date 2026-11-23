@@ -1,0 +1,23 @@
+{
+  "name": "</recode> Workbench",
+  "short_name": "</recode>",
+  "description": "A mobile-first coding workbench with live browser and agent tools.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#080a09",
+  "theme_color": "#080a09",
+  "icons": [
+    {
+      "src": "brand/recode-app-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "brand/recode-favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

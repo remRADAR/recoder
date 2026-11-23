@@ -30,9 +30,8 @@ const env = {
   // App branding - update these values directly (do not use env vars)
   appName: "</recode>",
   appSlug: "recoder",
-  // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
-  // Leave empty to use the default icon from assets/images/icon.png
-  logoUrl: "",
+  // Durable brand logo URL used by project metadata and sharing surfaces.
+  logoUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663929453524/XpAqmCgkhMUeblJa.png",
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,
   androidPackage: bundleId,
@@ -59,13 +58,14 @@ const publicRuntime = {
   apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? "",
 };
 
-const config: ExpoConfig = {
+const config: ExpoConfig & { logoUrl: string } = {
   name: env.appName,
   slug: env.appSlug,
   version: "1.0.0",
   extra: publicRuntime,
   orientation: "portrait",
-  icon: "./assets/images/icon.png",
+  icon: "./assets/branding/recode-app-icon.png",
+  logoUrl: env.logoUrl,
   scheme: env.scheme,
   userInterfaceStyle: "automatic",
   ios: {
@@ -102,7 +102,7 @@ const config: ExpoConfig = {
   web: {
     bundler: "metro",
     output: "static",
-    favicon: "./assets/images/favicon.png",
+    favicon: "./assets/branding/recode-favicon.png",
   },
   plugins: [
     "expo-asset",
@@ -124,7 +124,7 @@ const config: ExpoConfig = {
     [
       "expo-splash-screen",
       {
-        image: "./assets/images/splash-icon.png",
+        image: "./assets/branding/recode-splash.png",
         imageWidth: 200,
         resizeMode: "contain",
         backgroundColor: "#ffffff",
