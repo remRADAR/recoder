@@ -38,13 +38,12 @@ const LB = {
   trvTimer: null
 };
 const LB_LS = 'recoder-lb-v1';
-/* No server is baked in. A live browser server is a real process with a real
-   Chromium in it — it cannot be shipped inside a static page, and a URL that
-   pointed at a sandbox would be dead the moment that sandbox stopped. So the
-   app starts unconfigured and says so, instead of failing against a stale
-   address. Set it in Browser -> Live browser server, or run
-   server/deploy.sh and paste the URL it prints. */
-const LB_DEFAULT = '';
+/* The deployed server. A live browser server is a real process with a real
+   Chromium in it — it cannot be shipped inside a static page, so this points
+   at the Fly.io deployment (server/deploy.sh) rather than at anything local.
+   It is only a default: whatever the user sets in Browser -> Live browser
+   server is stored in localStorage and wins over this. */
+const LB_DEFAULT = 'https://recoder.fly.dev';
 
 function lbLoad() {
   try {
@@ -708,7 +707,7 @@ async function lbAgent(instruction) {
   const c = q.match(/^click\s+(.+)$/i);
   if (c) { setHint('Clicking ' + esc(c[1]) + '\u2026'); await lbAct({ action: 'click', selector: c[1].trim() }, c[1].trim()); setHint('Clicked.'); return; }
 
-  const t = q.match(/^type\s+["']?([^"']+?)["']?\s+(?:in|into)\s+(.+)$/i);
+  const t = q.match(/^type\s+["']>([^"']+?)["']?\s+(?:in|into)\s+(.+)$/i);
   if (t) { setHint('Typing into ' + esc(t[2]) + '\u2026'); await lbAct({ action: 'type', selector: t[2].trim(), text: t[1] }, t[2].trim()); setHint('Typed.'); return; }
 
   const r = q.match(/^(?:read|extract|get)\s+(.+)$/i);
@@ -1002,7 +1001,7 @@ function closeBrowser() {
   $$('#rail button').forEach((x) => x.classList.toggle('on', x.dataset.view === 'files'));
 }
 
-/* --- compatibility shims: the command palette and keybindings call these --- */
+/* -- compatibility shims: the command palette and keybindings call these -- */
 function brLoad() {
   lbLoad();
   if (!lbConfigured()) { lbHealth(true); return; }
