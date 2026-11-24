@@ -150,7 +150,13 @@ flyctl deploy -a "$APP" --remote-only
 # returned 4 hits and 6 misses, and /health reported two different uptimes.
 # Pin the app to a single machine until sessions are moved to shared state.
 say "pinning $APP to a single machine (sessions are in-process)"
-flyctl scale count 1 -a "$APP" --yes
+# Best-effort: a deploy token is scoped to deploying, and may not be allowed
+# to scale. Do not fail the deploy over it — say what to run instead.
+if ! flyctl scale count 1 -a "$APP" --yes; then
+  say "could not scale $APP to one machine."
+  say "  If it is running more than one, sessions will appear to vanish."
+  say "  Scale it by hand:  flyctl scale count 1 -a $APP"
+fi
 
 URL="https://$APP.fly.dev"
 say "waiting for $URL/health"
