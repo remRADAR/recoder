@@ -7,13 +7,16 @@ name: Deploy workbench server
 # nothing here should fire because someone touched a Python file.
 #
 # One-time setup — add the token once as a repository secret:
-#   flyctl tokens create deploy --app recode-live-browser
+#   flyctl tokens create deploy --app recoder
 #   gh secret set FLY_API_TOKEN --body "<the token>"
+#
+# The app name must match fly.toml (app = "recoder") and the URL the
+# workbench defaults to (https://recoder.fly.dev).
 #
 # Then: Actions -> "Deploy workbench server" -> Run workflow.
 #
 # Optional inputs:
-#   app     the Fly app name        (default: recode-live-browser)
+#   app     the Fly app name        (default: recoder)
 #   region  the Fly region          (default: iad)
 #   lb_token  value for LB_TOKEN    (default: empty = server accepts anonymous
 #                                   calls; set it to lock the server down)
@@ -27,7 +30,7 @@ on:
       app:
         description: 'Fly app name'
         required: false
-        default: 'recode-live-browser'
+        default: 'recoder'
       region:
         description: 'Fly region'
         required: false

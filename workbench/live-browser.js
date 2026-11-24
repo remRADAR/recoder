@@ -53,10 +53,11 @@ function lbLoad() {
   if (!LB.base) LB.base = LB_DEFAULT;
 }
 function lbSave() {
-  try { localStorage.setItem(LB_LS, JSON.stringify({ base: LB.base, token: LB.token })); } catch (e) {}
+  try {
+    localStorage.setItem(LB_LS, JSON.stringify({ base: LB.base, token: LB.token })); } catch (e) {}
 }
-/* Headers for every call. The server only enforces the token when it was
-   started with LB_TOKEN set, so sending it unconditionally is harmless. */
+/* Headers for every call. The server only enforces the token when it
+   was started with LB_TOKEN set, so sending it unconditionally is harmless. */
 function lbHeaders(extra) {
   const h = { 'content-type': 'application/json' };
   if (LB.token) h['authorization'] = 'Bearer ' + LB.token;
@@ -124,16 +125,32 @@ async function lbHealth(quiet) {
   }
 }
 
+/* Sessions live in the server process's memory, so a server running on more
+   than one machine answers "no such session" whenever a request lands on a
+   machine that does not own the session. That is a routing accident, not a
+   real answer: the session still exists on the other machine. Retry a few
+   times so a mis-scaled deployment degrades to "slower" instead of "broken".
+   A genuinely closed session still fails, just after the retries. */
+const LB_RETRY_404 = 4;
+const LB_RETRY_MS = 120;
+
 async function lbApi(path, body, method) {
-  const r = await fetch(lbUrl(path), {
-    method: method || (body ? 'POST' : 'GET'),
-    headers: lbHeaders(),
-    body: body ? JSON.stringify(body) : undefined,
-    cache: 'no-store'
-  });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
-  return d;
+  let lastErr = null;
+  for (let attempt = 0; attempt <= LB_RETRY_404; attempt++) {
+    const r = await fetch(lbUrl(path), {
+      method: method || (body ? 'POST' : 'GET'),
+      headers: lbHeaders(),
+      body: body ? JSON.stringify(body) : undefined,
+      cache: 'no-store'
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok) return d;
+    lastErr = new Error(d.error || ('HTTP ' + r.status));
+    const transient = r.status === 404 && /no such session/i.test(d.error || '');
+    if (!transient || attempt === LB_RETRY_404) break;
+    await new Promise(res => setTimeout(res, LB_RETRY_MS * (attempt + 1)));
+  }
+  throw lastErr;
 }
 
 /* ---------- per-tab state ---------- */
@@ -274,7 +291,7 @@ function lbConnectWs() {
   if (LB.ws) { try { LB.ws.close(); } catch (e) {} LB.ws = null; }
   if (!LB.sid) return;
   const sid = LB.sid;
-  const wsBase = lbOrigin().replace(/^http/, 'ws');
+  const wsBase = lbOrigin().replace(/^http/, 'wss');
   const wsTok = LB.token ? '?token=' + encodeURIComponent(LB.token) : '';
   let ws;
   try { ws = new WebSocket(wsBase + '/ws/' + sid + wsTok); } catch (e) { return; }
@@ -693,7 +710,7 @@ async function lbAgent(instruction) {
   const setHint = (t, warn) => { if (hint) { hint.innerHTML = t; hint.style.color = warn ? 'var(--amber)' : ''; } };
 
   // "open <url>" / "go to <url>"
-  const m = q.match(/^(?:open|go to|goto|navigate to|visit)\s+(\S+)/i);
+  const m = q.match(/^(?:open|go to|goto|navigate to|visit)\s+(\S)+/i);
   if (m) {
     let u = m[1];
     if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
@@ -904,7 +921,7 @@ function wireLiveBrowser() {
     const row = ev.target.closest('[data-brsess]');
     if (!row) return;
     const id = row.dataset.brsess;
-    if (BR_PANELS.some((p) => p[0] === id)) { lbTakePanel(id); return; }
+    if (BR_PANELS.some((p) => p0 === id)) { lbTakePanel(id); return; }
     if (id !== LB.sid) lbSwitchTab(id);
   });
 
