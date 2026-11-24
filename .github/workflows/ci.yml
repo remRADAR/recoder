@@ -40,3 +40,46 @@ jobs:
         run: pnpm build
       - name: Verify generated bundle is committed
         run: git diff --exit-code -- lib/editor/codemirror-bundle.ts
+
+  # The 8-case regression + E2E suite. Six cases are runnable from this
+  # repository and gate the job; two cannot run here and are reported as
+  # `gated` rather than silently skipped:
+  #   TQA-WEB-106 needs a booted `recoderd`, which lives in the separate
+  #               recoder-activation tarball, not in this repo.
+  #   TQA-WEB-105 needs a live AI provider key.
+  # qa/suite.mjs exits non-zero only when a runnable case fails, so the two
+  # gated cases can never turn the job green on their own.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: verify
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      # Playwright is a test-only tool for this job. It is installed here
+      # rather than declared in package.json so the app's dependency tree and
+      # lockfile stay untouched by the E2E harness.
+      - name: Install Playwright
+        run: |
+          npm install --no-save --no-package-lock playwright-core@1.65.1
+          npx --yes playwright@1.65.1 install --with-deps chromium
+      - name: Run the 8-case E2E suite
+        run: node qa/suite.mjs
+      - name: Upload attestation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-attestation
+          path: qa/out/attestation.json
+          if-no-files-found: warn
