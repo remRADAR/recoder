@@ -11,18 +11,31 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+/**
+ * The scheme used for the very first render on every platform.
+ *
+ * Static rendering has no `window`, so the server always resolves the system
+ * scheme to "light". If the client's first render read the real system scheme
+ * (e.g. "dark") the markup would not match the server's and React would log a
+ * hydration mismatch (#418). Pinning the first render to "light" and applying
+ * the real scheme in an effect keeps server and client output identical.
+ */
+const INITIAL_SCHEME: ColorScheme = "light";
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useSystemColorScheme() === "dark" ? "dark" : "light";
-  // Deterministic first render. The server has no system colour scheme, so seeding
-  // state from it produced different markup on the client and tripped React #418
-  // (hydration mismatch) on routes that render palette values. Start from a fixed
-  // scheme and adopt the system one after mount, unless the user chose explicitly.
-  const [colorScheme, setColorSchemeState] = useState<ColorScheme>("light");
-  const [userChosen, setUserChosen] = useState(false);
+  const [hasHydrated, setHasHydrated] = useState(false);
+  const [colorScheme, setColorSchemeState] = useState<ColorScheme>(INITIAL_SCHEME);
+
+  // Adopt the real system scheme only after hydration, so the first client
+  // render matches the server-rendered markup exactly.
+  useEffect(() => {
+    setHasHydrated(true);
+  }, []);
 
   useEffect(() => {
-    if (!userChosen) setColorSchemeState(systemScheme);
-  }, [systemScheme, userChosen]);
+    if (hasHydrated) setColorSchemeState(systemScheme);
+  }, [hasHydrated, systemScheme]);
 
   const applyScheme = useCallback((scheme: ColorScheme) => {
     nativewindColorScheme.set(scheme);
@@ -39,14 +52,33 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setColorScheme = useCallback((scheme: ColorScheme) => {
-    setUserChosen(true);
     setColorSchemeState(scheme);
     applyScheme(scheme);
   }, [applyScheme]);
 
   useEffect(() => {
-    applyScheme(colorScheme);
-  }, [applyScheme, colorScheme]);
+    // Defer past the hydration window.
+    //
+    // This route suspends during static rendering, so React hydrates the
+    // server's fallback first and finishes the real tree later. Writing
+    // data-theme / --color-* onto <html> while that is still in flight makes
+    // React compare the root element against the server markup and log #418.
+    // Two animation frames plus a macrotask puts the write safely after the
+    // hydration commit has settled.
+    if (!hasHydrated) return;
+    let raf2 = 0;
+    let timer = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        timer = window.setTimeout(() => applyScheme(colorScheme), 0);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+      clearTimeout(timer);
+    };
+  }, [applyScheme, colorScheme, hasHydrated]);
 
   const themeVariables = useMemo(
     () =>
