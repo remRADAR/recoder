@@ -53,11 +53,10 @@ function lbLoad() {
   if (!LB.base) LB.base = LB_DEFAULT;
 }
 function lbSave() {
-  try {
-    localStorage.setItem(LB_LS, JSON.stringify({ base: LB.base, token: LB.token })); } catch (e) {}
+  try { localStorage.setItem(LB_LS, JSON.stringify({ base: LB.base, token: LB.token })); } catch (e) {}
 }
-/* Headers for every call. The server only enforces the token when it
-   was started with LB_TOKEN set, so sending it unconditionally is harmless. */
+/* Headers for every call. The server only enforces the token when it was
+   started with LB_TOKEN set, so sending it unconditionally is harmless. */
 function lbHeaders(extra) {
   const h = { 'content-type': 'application/json' };
   if (LB.token) h['authorization'] = 'Bearer ' + LB.token;
@@ -291,7 +290,7 @@ function lbConnectWs() {
   if (LB.ws) { try { LB.ws.close(); } catch (e) {} LB.ws = null; }
   if (!LB.sid) return;
   const sid = LB.sid;
-  const wsBase = lbOrigin().replace(/^http/, 'wss');
+  const wsBase = lbOrigin().replace(/^http/, 'ws');
   const wsTok = LB.token ? '?token=' + encodeURIComponent(LB.token) : '';
   let ws;
   try { ws = new WebSocket(wsBase + '/ws/' + sid + wsTok); } catch (e) { return; }
@@ -710,7 +709,7 @@ async function lbAgent(instruction) {
   const setHint = (t, warn) => { if (hint) { hint.innerHTML = t; hint.style.color = warn ? 'var(--amber)' : ''; } };
 
   // "open <url>" / "go to <url>"
-  const m = q.match(/^(?:open|go to|goto|navigate to|visit)\s+(\S)+/i);
+  const m = q.match(/^(?:open|go to|goto|navigate to|visit)\s+(\S+)/i);
   if (m) {
     let u = m[1];
     if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
@@ -921,7 +920,7 @@ function wireLiveBrowser() {
     const row = ev.target.closest('[data-brsess]');
     if (!row) return;
     const id = row.dataset.brsess;
-    if (BR_PANELS.some((p) => p0 === id)) { lbTakePanel(id); return; }
+    if (BR_PANELS.some((p) => p[0] === id)) { lbTakePanel(id); return; }
     if (id !== LB.sid) lbSwitchTab(id);
   });
 
@@ -1034,7 +1033,7 @@ function brTakePanel(k) { lbTakePanel(k); }
 function brPause() { lbSetModeRemote('manual'); }
 function brReset() { lbSetMode('idle'); }
 function brPlay() {
-  if (!LB.steps.length) { toast('No live session yet \u2014 open an address first'); return; }
+  if (!LB.steps.length) { toast('No live session yet'); return; }
   lbSetModeRemote('agent');
   let i = 0;
   const tick = () => {
