@@ -14,6 +14,12 @@ primary_region = "iad"
 [env]
   PORT = "8787"
   LB_TRACE_DIR = "/data/traces"
+  # Fly's edge sets x-forwarded-for / x-forwarded-proto on every request but
+  # does NOT inject an Access-Control-Allow-Origin of its own (verified
+  # against this deployment: /health and /api/sessions returned no ACAO at
+  # all). Auto mode therefore concluded "a proxy handles CORS" and sent
+  # nothing, so the browser blocked every call. Force it on.
+  LB_CORS = "on"
   # Set a token to lock the server down:
   #   fly secrets set LB_TOKEN=your-long-random-string
   # and paste the same token into the workbench.
