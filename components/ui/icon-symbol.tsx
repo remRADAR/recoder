@@ -2,7 +2,7 @@
 
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { SymbolWeight, SymbolViewProps } from "expo-symbols";
-import { ComponentProps, useEffect, useState } from "react";
+import { ComponentProps, useSyncExternalStore } from "react";
 import { OpaqueColorValue, type StyleProp, type TextStyle } from "react-native";
 
 type IconMapping = Partial<Record<Extract<SymbolViewProps["name"], string>, ComponentProps<typeof MaterialIcons>["name"]>>;
@@ -19,6 +19,11 @@ const MAPPING = {
   "chevron.left.forwardslash.chevron.right": "code",
   "chevron.right": "chevron-right",
 } satisfies IconMapping;
+
+// A store that never changes: we only care about which snapshot React asks for.
+const subscribeToNothing = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 /**
  * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.
@@ -42,8 +47,17 @@ export function IconSymbol({
   // versus a glyph-bearing <span> on the client), which React reported as #418
   // (hydration mismatch). Render nothing until mounted so both passes agree, then
   // swap the real glyph in.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  //
+  // `useSyncExternalStore` is the hydration-safe way to ask "are we on the client
+  // yet?": the server snapshot is `false` and the client snapshot is `true`, so the
+  // hydration render matches the server exactly and React re-renders with the real
+  // glyph once hydration completes. A `useState` + `useEffect` pair did the same job
+  // but tripped `react-hooks/set-state-in-effect` (cascading render on mount).
+  const mounted = useSyncExternalStore(
+    subscribeToNothing,
+    getClientSnapshot,
+    getServerSnapshot,
+  );
 
   if (!mounted) return null;
 
