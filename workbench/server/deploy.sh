@@ -73,15 +73,53 @@ say "authenticated as $WHO"
 say "app=$APP  region=$REGION  volume=$VOL"
 
 # ---------------------------------------------------------------- app
-if ! flyctl apps list --json 2>/dev/null | grep -q "\"Name\":\"$APP\""; then
+# Parse the JSON rather than grepping it: flyctl pretty-prints its output
+# ("Name": "recoder" with a space), so a `grep '"Name":"recoder"'` never
+# matches and the script would try to create an app that already exists —
+# which a deploy token is not allowed to do.
+app_exists() {
+  flyctl apps list --json 2>/dev/null \
+    | python3 -c 'import json,sys
+try: apps=json.load(sys.stdin)
+except Exception: sys.exit(1)
+sys.exit(0 if any(a.get("Name")==sys.argv[1] for a in apps) else 1)' "$APP"
+}
+
+if ! app_exists; then
   say "creating app $APP"
-  flyctl apps create "$APP" --org personal
+  if ! CREATE_OUT="$(flyctl apps create "$APP" --org "${FLY_ORG:-personal}" 2>&1)"; then
+    printf '%s\n' "$CREATE_OUT" >&2
+    if printf '%s' "$CREATE_OUT" | grep -qiE 'unauthorized|not authorized'; then
+      die "the token cannot create apps — it is scoped to a single app.
+
+  A Fly *deploy* token (flyctl tokens create deploy --app NAME) can only
+  deploy to that one app; it cannot create a new one. Either:
+
+    a) create the app once with an account-scoped token, then re-run:
+         flyctl apps create $APP --org ${FLY_ORG:-personal}
+       (or create it in the Fly dashboard), or
+
+    b) mint an org-scoped token instead:
+         flyctl tokens create org --org ${FLY_ORG:-personal}
+       and use that as FLY_API_TOKEN."
+    fi
+    die "could not create app $APP"
+  fi
 else
   say "app $APP already exists"
 fi
 
 # ---------------------------------------------------------------- volume
-if ! flyctl volumes list -a "$APP" --json 2>/dev/null | grep -q "\"Name\":\"$VOL\""; then
+# Same JSON-parsing rule as the app check above.
+volume_exists() {
+  flyctl volumes list -a "$APP" --json 2>/dev/null \
+    | python3 -c 'import json,sys
+try: vols=json.load(sys.stdin)
+except Exception: sys.exit(1)
+sys.exit(0 if any(v.get("Name")==sys.argv[1] for v in vols) else 1)' "$VOL"
+}
+
+if ! volume_exists; then
   say "creating volume $VOL (1GB) in $REGION"
   flyctl volumes create "$VOL" -a "$APP" --region "$REGION" --size 1 --yes
 else
