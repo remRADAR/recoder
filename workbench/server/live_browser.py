@@ -615,6 +615,14 @@ async def on_startup(app):
     )
     app["reaper"] = asyncio.create_task(reaper())
     print("[live-browser] chromium up", flush=True)
+    # Sessions live in this process's memory, so this app must run on exactly
+    # one machine. Fly sets FLY_MACHINE_ID; if the app is ever scaled past one
+    # machine, requests round-robin and sessions appear to vanish. Say so in
+    # the logs rather than letting it look like a client bug.
+    if os.environ.get("FLY_MACHINE_ID"):
+        print("[live-browser] machine %s — sessions are in-process; this app "
+              "must run on exactly one machine (flyctl scale count 1)"
+              % os.environ["FLY_MACHINE_ID"], flush=True)
 
 
 async def on_cleanup(app):
