@@ -664,9 +664,17 @@ def main():
         #                    detected, otherwise send it
         #   on             - always send it (direct/self-hosted, no proxy)
         #   off            - never send it (proxy definitely handles it)
+        # NOTE: fly-client-ip is deliberately NOT in this list. Fly's edge
+        # sets it on every request but does NOT inject an
+        # Access-Control-Allow-Origin of its own (verified against a live
+        # deployment: /health and /api/sessions both came back with no ACAO
+        # header at all). Treating it as "a proxy handles CORS" made auto
+        # mode skip our header on every Fly deployment, so the browser
+        # blocked every call. Only headers from proxies that really do
+        # rewrite CORS belong here.
         proxied = any(request.headers.get(h) for h in
                       ("x-forwarded-for", "x-forwarded-proto", "x-real-ip",
-                       "cf-ray", "cf-connecting-ip", "fly-client-ip"))
+                       "cf-ray", "cf-connecting-ip"))
         send_cors = (CORS_MODE == "on") or (CORS_MODE == "auto" and not proxied)
         if send_cors:
             if ORIGINS == "*":
