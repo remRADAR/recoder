@@ -16,7 +16,7 @@
 #   5. deploys the image and prints the permanent URL
 set -euo pipefail
 
-APP="${FLY_APP:-recode-live-browser}"
+APP="${FLY_APP:-recoder}"
 REGION="${FLY_REGION:-iad}"
 VOL="${FLY_VOL:-lb_data}"
 CHECK=0
@@ -35,13 +35,13 @@ say "preflight"
 # is exactly where you are when you are checking the config before installing
 # anything). flyctl is only required to actually deploy.
 for f in Dockerfile fly.toml requirements.txt live_browser.py trace_view.py manus_proxy.py; do
-  [ -f "$f" ] || die "missing $f — run this from the server/ directory"
+  [ -f "$f" ] || die "missing $f \u2014 run this from the server/ directory"
 done
 
 # The Dockerfile copies exactly these; a missing one fails the build late.
 for f in trace_view.py manus_proxy.py; do
   grep -q "COPY $f" Dockerfile || \
-    die "Dockerfile does not copy $f — that service would be missing from the image"
+    die "Dockerfile does not copy $f \u2014 that service would be missing from the image"
 done
 
 if ! command -v flyctl >/dev/null 2>&1; then
@@ -75,7 +75,7 @@ say "app=$APP  region=$REGION  volume=$VOL"
 # ---------------------------------------------------------------- app
 # Parse the JSON rather than grepping it: flyctl pretty-prints its output
 # ("Name": "recoder" with a space), so a `grep '"Name":"recoder"'` never
-# matches and the script would try to create an app that already exists —
+# matches and the script would try to create an app that already exists \u2014
 # which a deploy token is not allowed to do.
 app_exists() {
   flyctl apps list --json 2>/dev/null \
@@ -90,7 +90,7 @@ if ! app_exists; then
   if ! CREATE_OUT="$(flyctl apps create "$APP" --org "${FLY_ORG:-personal}" 2>&1)"; then
     printf '%s\n' "$CREATE_OUT" >&2
     if printf '%s' "$CREATE_OUT" | grep -qiE 'unauthorized|not authorized'; then
-      die "the token cannot create apps — it is scoped to a single app.
+      die "the token cannot create apps \u2014 it is scoped to a single app.
 
   A Fly *deploy* token (flyctl tokens create deploy --app NAME) can only
   deploy to that one app; it cannot create a new one. Either:
@@ -131,7 +131,7 @@ if [ -n "${LB_TOKEN:-}" ]; then
   say "setting LB_TOKEN secret"
   flyctl secrets set LB_TOKEN="$LB_TOKEN" -a "$APP" --stage
 else
-  say "no LB_TOKEN set — the server will accept unauthenticated calls."
+  say "no LB_TOKEN set \u2014 the server will accept unauthenticated calls."
   say "  Set one with:  LB_TOKEN=<long-random> ./deploy.sh"
 fi
 
@@ -148,7 +148,7 @@ for i in $(seq 1 30); do
     break
   fi
   sleep 4
-  [ "$i" = "30" ] && say "health check did not pass yet — check: flyctl logs -a $APP"
+  [ "$i" = "30" ] && say "health check did not pass yet \u2014 check: flyctl logs -a $APP"
 done
 
 cat <<EOF

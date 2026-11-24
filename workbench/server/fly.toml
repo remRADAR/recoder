@@ -5,7 +5,7 @@
 #
 # Then put https://recode-live-browser.fly.dev into
 # Browser -> Live browser server in the workbench.
-app = "recode-live-browser"
+app = "recoder"
 primary_region = "iad"
 
 [build]
