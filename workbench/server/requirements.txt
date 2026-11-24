@@ -1,0 +1,12 @@
+# Python dependencies for the workbench servers.
+#
+#   pip install -r requirements.txt
+#   python3 -m playwright install chromium
+#
+# The Dockerfile builds FROM mcr.microsoft.com/playwright/python:v1.49.1-jammy,
+# which already ships the matching Playwright + Chromium, so the pin below is
+# a no-op inside the image and only matters for a bare-metal install. Keep the
+# two versions in step: a Playwright pip package that does not match the
+# browser build in the image fails at launch, not at install.
+aiohttp==3.14.5
+playwright==1.49.1

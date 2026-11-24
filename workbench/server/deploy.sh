@@ -30,16 +30,28 @@ die() { printf '\033[31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 # ---------------------------------------------------------------- preflight
 say "preflight"
 
-command -v flyctl >/dev/null 2>&1 || die "flyctl not found. Install it:
-  curl -L https://fly.io/install.sh | sh"
-
-for f in Dockerfile fly.toml requirements.txt live_browser.py trace_view.py; do
+# File checks run FIRST and unconditionally: they are the ones that catch a
+# broken image, and they must be reportable on a machine with no flyctl (which
+# is exactly where you are when you are checking the config before installing
+# anything). flyctl is only required to actually deploy.
+for f in Dockerfile fly.toml requirements.txt live_browser.py trace_view.py manus_proxy.py; do
   [ -f "$f" ] || die "missing $f — run this from the server/ directory"
 done
 
 # The Dockerfile copies exactly these; a missing one fails the build late.
-grep -q 'COPY trace_view.py' Dockerfile || \
-  die "Dockerfile does not copy trace_view.py — the trace viewer would 500 at runtime"
+for f in trace_view.py manus_proxy.py; do
+  grep -q "COPY $f" Dockerfile || \
+    die "Dockerfile does not copy $f — that service would be missing from the image"
+done
+
+if ! command -v flyctl >/dev/null 2>&1; then
+  if [ "$CHECK" = "1" ]; then
+    say "flyctl not installed (fine for --check)"
+  else
+    die "flyctl not found. Install it:
+  curl -L https://fly.io/install.sh | sh"
+  fi
+fi
 
 if ! flyctl auth whoami >/dev/null 2>&1; then
   if [ "$CHECK" = "1" ]; then

@@ -17,6 +17,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY live_browser.py .
 COPY trace_view.py .
+# The Manus proxy is a second service that shares this image. It is not the
+# default CMD, but it must be present so the same image can run either one:
+#   docker run -p 8787:8787 recode-live-browser
+#   docker run -p 8790:8790 recode-live-browser python3 manus_proxy.py
+COPY manus_proxy.py .
 
 RUN mkdir -p /data/traces
 VOLUME ["/data"]
