@@ -16,7 +16,10 @@ const env = {
   appId: extra.appId ?? process.env.EXPO_PUBLIC_APP_ID ?? "",
   ownerId: process.env.EXPO_PUBLIC_OWNER_OPEN_ID ?? "",
   ownerName: process.env.EXPO_PUBLIC_OWNER_NAME ?? "",
-  apiBaseUrl: extra.apiBaseUrl ?? process.env.EXPO_PUBLIC_API_BASE_URL ?? "",
+  // NOTE: `||` not `??` — app.config.ts always serializes `apiBaseUrl` into
+  // `extra`, defaulting to "". With `??` that empty string is not nullish, so
+  // it would win and the EXPO_PUBLIC_API_BASE_URL fallback would never apply.
+  apiBaseUrl: extra.apiBaseUrl || process.env.EXPO_PUBLIC_API_BASE_URL || "",
   deepLinkScheme: schemeFromBundleId,
 };
 
@@ -26,6 +29,39 @@ export const APP_ID = env.appId;
 export const OWNER_OPEN_ID = env.ownerId;
 export const OWNER_NAME = env.ownerName;
 export const API_BASE_URL = env.apiBaseUrl;
+
+/**
+ * Whether an explicit API origin was supplied at build time.
+ *
+ * `EXPO_PUBLIC_API_BASE_URL` is inlined by Metro during bundling, so it must be
+ * set BEFORE `expo export` runs. Setting it at runtime has no effect on an
+ * already-exported bundle.
+ */
+export const IS_API_BASE_CONFIGURED = Boolean(API_BASE_URL);
+
+/** Raised when a request is attempted with no usable API origin. */
+export class ApiBaseUrlMissingError extends Error {
+  constructor() {
+    super(
+      "EXPO_PUBLIC_API_BASE_URL is not set, so the client has no tRPC server to reach. " +
+        "Set it before building, e.g. " +
+        "EXPO_PUBLIC_API_BASE_URL=https://your-server.example.com npx expo export --platform web",
+    );
+    this.name = "ApiBaseUrlMissingError";
+  }
+}
+
+/**
+ * Human-readable description of where API requests will go.
+ * Used for startup diagnostics so a misconfigured build is obvious rather than
+ * silently issuing requests against the static host.
+ */
+export function describeApiBase(): string {
+  const resolved = getApiBaseUrl();
+  if (IS_API_BASE_CONFIGURED) return `configured: ${resolved}`;
+  if (resolved) return `derived from hostname: ${resolved}`;
+  return "unset — requests would target the static host and 404";
+}
 
 /**
  * Get the API base URL, deriving from current hostname if not set.
@@ -50,6 +86,19 @@ export function getApiBaseUrl(): string {
 
   // Fallback to empty (will use relative URL)
   return "";
+}
+
+/**
+ * Resolve the API origin, or throw with an actionable message.
+ *
+ * Prefer this over `getApiBaseUrl()` on any path that is about to perform a
+ * network request: an empty base silently resolves to the static host and
+ * surfaces as an opaque 404 instead of a configuration error.
+ */
+export function requireApiBaseUrl(): string {
+  const resolved = getApiBaseUrl();
+  if (!resolved) throw new ApiBaseUrlMissingError();
+  return resolved;
 }
 
 export const SESSION_TOKEN_KEY = "app_session_token";
@@ -121,7 +170,6 @@ export async function startOAuthLogin(): Promise<string | null> {
   const supported = await Linking.canOpenURL(loginUrl);
   if (!supported) {
     console.warn("[OAuth] Cannot open login URL: URL scheme not supported");
-    // 可考虑抛出错误或返回错误状态，让调用方处理
     return null;
   }
 
@@ -129,7 +177,6 @@ export async function startOAuthLogin(): Promise<string | null> {
     await Linking.openURL(loginUrl);
   } catch {
     console.error("[OAuth] Failed to open login URL");
-    // 可考虑抛出错误让调用方处理
   }
 
   // The OAuth callback will reopen the app via deep link.
