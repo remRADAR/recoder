@@ -30,6 +30,13 @@ primary_region = "iad"
   auto_stop_machines = "suspend"
   auto_start_machines = true
   min_machines_running = 1
+  # Sessions live in this process's memory and a Chromium page cannot be
+  # shared between machines, so this app must run on exactly ONE machine.
+  # With two, Fly round-robins requests and a session created on one machine
+  # is "no such session" on the other (measured: 4 hits / 6 misses on 10
+  # consecutive GETs of the same id). deploy.sh enforces this with
+  # `flyctl scale count 1`; do not raise it without moving sessions to
+  # shared state first.
 
   [http_service.concurrency]
     type = "connections"

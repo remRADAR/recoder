@@ -139,6 +139,19 @@ fi
 say "deploying (this builds the Playwright image, ~2-4 min the first time)"
 flyctl deploy -a "$APP" --remote-only
 
+# ---------------------------------------------------------------- one machine
+# Sessions live in this process's memory (SESSIONS = {} in live_browser.py),
+# and a Chromium page cannot be shared between machines. With more than one
+# machine Fly round-robins each request, so a session created on machine A is
+# "no such session" on machine B — roughly two out of three calls fail, and
+# the workbench looks broken while the server is healthy.
+#
+# Verified against the live deployment: 10 consecutive GETs on one session id
+# returned 4 hits and 6 misses, and /health reported two different uptimes.
+# Pin the app to a single machine until sessions are moved to shared state.
+say "pinning $APP to a single machine (sessions are in-process)"
+flyctl scale count 1 -a "$APP" --yes
+
 URL="https://$APP.fly.dev"
 say "waiting for $URL/health"
 for i in $(seq 1 30); do
