@@ -13,7 +13,16 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useSystemColorScheme() === "dark" ? "dark" : "light";
-  const [colorScheme, setColorSchemeState] = useState<ColorScheme>(systemScheme);
+  // Deterministic first render. The server has no system colour scheme, so seeding
+  // state from it produced different markup on the client and tripped React #418
+  // (hydration mismatch) on routes that render palette values. Start from a fixed
+  // scheme and adopt the system one after mount, unless the user chose explicitly.
+  const [colorScheme, setColorSchemeState] = useState<ColorScheme>("light");
+  const [userChosen, setUserChosen] = useState(false);
+
+  useEffect(() => {
+    if (!userChosen) setColorSchemeState(systemScheme);
+  }, [systemScheme, userChosen]);
 
   const applyScheme = useCallback((scheme: ColorScheme) => {
     nativewindColorScheme.set(scheme);
@@ -30,6 +39,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setColorScheme = useCallback((scheme: ColorScheme) => {
+    setUserChosen(true);
     setColorSchemeState(scheme);
     applyScheme(scheme);
   }, [applyScheme]);

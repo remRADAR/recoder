@@ -2,7 +2,7 @@
 
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { SymbolWeight, SymbolViewProps } from "expo-symbols";
-import { ComponentProps } from "react";
+import { ComponentProps, useEffect, useState } from "react";
 import { OpaqueColorValue, type StyleProp, type TextStyle } from "react-native";
 
 type IconMapping = Partial<Record<Extract<SymbolViewProps["name"], string>, ComponentProps<typeof MaterialIcons>["name"]>>;
@@ -37,5 +37,15 @@ export function IconSymbol({
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
 }) {
+  // The icon font is loaded asynchronously on web. Rendering the glyph during the
+  // first pass produced markup the server had not emitted (an empty node server-side
+  // versus a glyph-bearing <span> on the client), which React reported as #418
+  // (hydration mismatch). Render nothing until mounted so both passes agree, then
+  // swap the real glyph in.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return null;
+
   return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
 }
