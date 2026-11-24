@@ -1,0 +1,97 @@
+name: Deploy workbench server
+
+# Deploy the live-browser server (and, with the same image, the Manus proxy)
+# to Fly.io.
+#
+# Manual only, on purpose: a deploy is a deliberate act with a real cost, and
+# nothing here should fire because someone touched a Python file.
+#
+# One-time setup — add the token once as a repository secret:
+#   flyctl tokens create deploy --app recode-live-browser
+#   gh secret set FLY_API_TOKEN --body "<the token>"
+#
+# Then: Actions -> "Deploy workbench server" -> Run workflow.
+#
+# Optional inputs:
+#   app     the Fly app name        (default: recode-live-browser)
+#   region  the Fly region          (default: iad)
+#   lb_token  value for LB_TOKEN    (default: empty = server accepts anonymous
+#                                   calls; set it to lock the server down)
+#
+# The deploy itself is `workbench/server/deploy.sh` — the same script a human
+# runs locally, so CI and a local deploy cannot drift apart.
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Fly app name'
+        required: false
+        default: 'recode-live-browser'
+      region:
+        description: 'Fly region'
+        required: false
+        default: 'iad'
+      lb_token:
+        description: 'LB_TOKEN (blank = no auth on the server)'
+        required: false
+        default: ''
+
+concurrency:
+  group: deploy-workbench-server
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: fly deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: workbench/server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fail here, with an instruction, rather than three steps later inside
+      # flyctl with a less obvious message.
+      - name: Check FLY_API_TOKEN is configured
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "::error::FLY_API_TOKEN is not set. Create one and add it as a repository secret:"
+            echo "  flyctl tokens create deploy --app ${{ inputs.app }}"
+            echo "  gh secret set FLY_API_TOKEN --body \"<the token>\""
+            exit 1
+          fi
+
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      # deploy.sh does its own preflight (files present, Dockerfile copies
+      # match), creates the app and volume if missing, sets LB_TOKEN, deploys,
+      # and polls /health until it answers. Running it here means CI exercises
+      # the documented path instead of a parallel copy of it.
+      - name: Deploy
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_APP: ${{ inputs.app }}
+          FLY_REGION: ${{ inputs.region }}
+          LB_TOKEN: ${{ inputs.lb_token }}
+        run: bash deploy.sh
+
+      # deploy.sh prints the URL; keep it on the run summary so the value to
+      # paste into the workbench is one click away.
+      - name: Record the server URL
+        if: success()
+        run: |
+          {
+            echo "### Workbench server deployed"
+            echo ""
+            echo "Paste this into the workbench -> Live browser server -> Server URL:"
+            echo ""
+            echo '```'
+            echo "https://${{ inputs.app }}.fly.dev"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
