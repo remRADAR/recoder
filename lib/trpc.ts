@@ -2,7 +2,7 @@ import { createTRPCReact } from "@trpc/react-query";
 import { httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
 import type { AppRouter } from "@/server/routers";
-import { getApiBaseUrl } from "@/constants/oauth";
+import { getApiBaseUrl, describeApiBase, IS_API_BASE_CONFIGURED } from "@/constants/oauth";
 import * as Auth from "@/lib/_core/auth";
 
 /**
@@ -19,6 +19,12 @@ export const trpc = createTRPCReact<AppRouter>();
  * Call this once in your app's root layout.
  */
 export function createTRPCClient() {
+  // Surface the resolved API origin once at startup. A build with no
+  // EXPO_PUBLIC_API_BASE_URL would otherwise issue requests against the static
+  // host and fail as opaque 404s.
+  if (!IS_API_BASE_CONFIGURED) {
+    console.warn(`[trpc] EXPO_PUBLIC_API_BASE_URL is not set (${describeApiBase()}).`);
+  }
   return trpc.createClient({
     links: [
       httpBatchLink({
