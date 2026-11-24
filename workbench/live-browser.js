@@ -707,7 +707,7 @@ async function lbAgent(instruction) {
   const c = q.match(/^click\s+(.+)$/i);
   if (c) { setHint('Clicking ' + esc(c[1]) + '\u2026'); await lbAct({ action: 'click', selector: c[1].trim() }, c[1].trim()); setHint('Clicked.'); return; }
 
-  const t = q.match(/^type\s+["']>([^"']+?)["']?\s+(?:in|into)\s+(.+)$/i);
+  const t = q.match(/^type\s+["']?([^"']+?)["']?\s+(?:in|into)\s+(.+)$/i);
   if (t) { setHint('Typing into ' + esc(t[2]) + '\u2026'); await lbAct({ action: 'type', selector: t[2].trim(), text: t[1] }, t[2].trim()); setHint('Typed.'); return; }
 
   const r = q.match(/^(?:read|extract|get)\s+(.+)$/i);
@@ -1001,7 +1001,7 @@ function closeBrowser() {
   $$('#rail button').forEach((x) => x.classList.toggle('on', x.dataset.view === 'files'));
 }
 
-/* -- compatibility shims: the command palette and keybindings call these -- */
+/* --- compatibility shims: the command palette and keybindings call these --- */
 function brLoad() {
   lbLoad();
   if (!lbConfigured()) { lbHealth(true); return; }
